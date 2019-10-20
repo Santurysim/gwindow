@@ -1,0 +1,12 @@
+Simple graphic window                         ‰   ‰gwindow.h
+    Implementation                            ‰   ‰gwindow.cpp
+Test: draw a graph of function                ‰   ‰func.cpp
+Animation example: Clock                      ‰   ‰clock.cpp
+Mondrian                                      ‰   ‰mondrian.cpp
+Very simple test                              ‰   ‰grtst.cpp
+Bezier curve                                  ‰   ‰bezier.cpp
+Test of cursors                               ‰   ‰cursTst.cpp
+Measure reaction                              ‰   ‰react.cpp
+                                              ‰   ‰
+R2Graph                                       ‰   ‰../R2Graph/R2Graph.h
+All files                                     ‰   ‰.
