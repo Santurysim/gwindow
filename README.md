@@ -1,1 +1,2 @@
-Library to make GUI in X by Vladimir Borisenko
+ A small library for making GUI in X written by Vladimir Borisenko at Faculty of Mechanics and Matematics, MSU
+ 
