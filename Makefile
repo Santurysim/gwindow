@@ -1,7 +1,7 @@
 CFLAGS= -g -O0 -Wall -I/usr/X11R6/include -L/usr/X11R6/lib -L./bin/ -Iinclude/ -I. 
 CXX= g++ $(CFLAGS)
 
-.PHONY: install uninstall clean all
+.PHONY: install uninstall clean all create-dirs
 
 all: libgwindow.so
 
@@ -25,7 +25,7 @@ cursTst: cursTst.o libgwindow.so R2Graph/R2Graph.o
 react: react.o libgwindow.so R2Graph/R2Graph.o
 	$(CXX) -o bin/react obj/react.o R2Graph/obj/R2Graph.o -lX11 -lrt -lgwindow
 
-gwindow.o: src/gwindow.cpp gwindow.h
+gwindow.o: src/gwindow.cpp gwindow.h create-dirs
 	$(CXX) -fPIC -c src/gwindow.cpp -o obj/gwindow.o
 
 func.o: src/func.cpp gwindow.h
@@ -57,11 +57,16 @@ grtst: src/grtst.cpp libgwindow.so
 libgwindow.so: gwindow.o
 	$(CXX) -shared obj/gwindow.o -o bin/libgwindow.so
 
-install: libgwindow.so
+install: bin/libgwindow.so
 	install -m755 bin/libgwindow.so /usr/lib
+	install -m755 include/gwindow.h /usr/include
 
-uninstall: install
+uninstall:
 	rm -f /usr/lib/libgwindow.so
+	rm -f /usr/include/gwindow.h
+
+create-dirs:
+	mkdir -p bin obj
 
 clean:
 	rm -f bin/* obj/*
