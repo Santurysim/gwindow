@@ -1,11 +1,11 @@
-CC = g++ $(CFLAGS)
-CFLAGS = -g -O0 -Wall
+CFLAGS = -g -O0 -Wall -Iinclude
+CXX = g++ $(CFLAGS)
 
-graphtst: graphtst.cpp R2Graph.o R2Graph.h
-	$(CC) -o graphtst graphtst.cpp R2Graph.o
+graphtst: src/graphtst.cpp R2Graph.o include/R2Graph.h
+	$(CXX) -o bin/graphtst src/graphtst.cpp obj/R2Graph.o
 
-R2Graph.o: R2Graph.cpp R2Graph.h
-	$(CC) -c R2Graph.cpp
+R2Graph.o: src/R2Graph.cpp include/R2Graph.h
+	$(CXX) -c src/R2Graph.cpp -o obj/R2Graph.o
 
 clean:
-	rm -f *.o graphtst core*
+	rm -f bin/* obj/*

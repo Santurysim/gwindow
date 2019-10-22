@@ -5,4 +5,6 @@
 *.so.*
 
 bin/
-lib/
+obj/
+R2Graph/bin/
+R2Graph/obj/

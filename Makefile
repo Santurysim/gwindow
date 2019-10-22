@@ -1,66 +1,68 @@
-CFLAGS= -g -O0 -Wall -I/usr/X11R6/include -L/usr/X11R6/lib -L./lib/ -I.. -I.
+CFLAGS= -g -O0 -Wall -I/usr/X11R6/include -L/usr/X11R6/lib -L./bin/ -Iinclude/ -I. 
 CXX= g++ $(CFLAGS)
 
-.PHONY: install uninstall clean 
+.PHONY: install uninstall clean all
 
-all: bin/func bin/gclock bin/mondrian bin/bezier bin/cursTst bin/react lib/libgwindow.so
+all: libgwindow.so
 
-bin/func: func.o gwindow.o R2Graph/R2Graph.o
-	$(CXX) -o bin/func func.o gwindow.o R2Graph/R2Graph.o -lX11
+samples: func gclock mondrian bezier cursTst react
 
-bun/gclock: clock.o gwindow.o R2Graph/R2Graph.o
-	$(CXX) -o bin/gclock clock.o gwindow.o R2Graph/R2Graph.o -lX11
+func: func.o libgwindow.so R2Graph/R2Graph.o
+	$(CXX) -o bin/func obj/func.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
 
-bin/mondrian: mondrian.o gwindow.o R2Graph/R2Graph.o
-	$(CXX) -o bin/mondrian mondrian.o gwindow.o R2Graph/R2Graph.o -lX11
+gclock: clock.o libgwindow.so R2Graph/R2Graph.o
+	$(CXX) -o bin/gclock obj/clock.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
 
-bin/bezier: bezier.o gwindow.o R2Graph/R2Graph.o
-	$(CXX) -o bin/bezier bezier.o gwindow.o R2Graph/R2Graph.o -lX11
+mondrian: mondrian.o libgwindow.so R2Graph/R2Graph.o
+	$(CXX) -o bin/mondrian obj/mondrian.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
 
-bin/cursTst: cursTst.o gwindow.o R2Graph/R2Graph.o
-	$(CXX) -o bin/cursTst cursTst.o gwindow.o R2Graph/R2Graph.o -lX11
+bezier: bezier.o libgwindow.so R2Graph/R2Graph.o
+	$(CXX) -o bin/bezier obj/bezier.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
 
-bin/react: react.o gwindow.o R2Graph/R2Graph.o
-	$(CXX) -o bin/react react.o gwindow.o R2Graph/R2Graph.o -lX11 -lrt
+cursTst: cursTst.o libgwindow.so R2Graph/R2Graph.o
+	$(CXX) -o bin/cursTst obj/cursTst.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
 
-gwindow.o: gwindow.cpp gwindow.h
-	$(CXX) -fPIC -c gwindow.cpp
+react: react.o libgwindow.so R2Graph/R2Graph.o
+	$(CXX) -o bin/react obj/react.o R2Graph/obj/R2Graph.o -lX11 -lrt -lgwindow
 
-func.o: func.cpp gwindow.h
-	$(CXX) -c func.cpp
+gwindow.o: src/gwindow.cpp gwindow.h
+	$(CXX) -fPIC -c src/gwindow.cpp -o obj/gwindow.o
 
-clock.o: clock.cpp gwindow.h
-	$(CXX) -c clock.cpp
+func.o: src/func.cpp gwindow.h
+	$(CXX) -c src/func.cpp -o obj/func.o
 
-mondrian.o: mondrian.cpp gwindow.h
-	$(CXX) -c mondrian.cpp
+clock.o: src/clock.cpp gwindow.h
+	$(CXX) -c src/clock.cpp -o obj/clock.o
 
-besier.o: besier.cpp gwindow.h
-	$(CXX) -c besier.cpp
+mondrian.o: src/mondrian.cpp gwindow.h
+	$(CXX) -c src/mondrian.cpp -o obj/mondrian.o
 
-cursTst.o: cursTst.cpp gwindow.h
-	$(CXX) -c cursTst.cpp
+bezier.o: src/bezier.cpp gwindow.h
+	$(CXX) -c src/bezier.cpp -o obj/bezier.o
 
-react.o: react.cpp gwindow.h
-	$(CXX) -c react.cpp
+cursTst.o: src/cursTst.cpp gwindow.h
+	$(CXX) -c src/cursTst.cpp -o obj/cursTst.o
+
+react.o: src/react.cpp gwindow.h
+	$(CXX) -c src/react.cpp -o obj/react.o
 
 R2Graph/R2Graph.o:
 	cd R2Graph; make R2Graph.o; cd ..
 
-gwindow.h: R2Graph/R2Graph.h
+gwindow.h: R2Graph/include/R2Graph.h include/gwindow.h
 
-grtst: grtst.cpp gwindow.o
-	$(CXX) -o grtst grtst.cpp gwindow.o -lX11
+grtst: src/grtst.cpp libgwindow.so
+	$(CXX) -o bin/grtst src/grtst.cpp -lX11 -lgwindow
 
 libgwindow.so: gwindow.o
-	$(CXX) -shared gwindow.o -o libgwindow.so
+	$(CXX) -shared obj/gwindow.o -o bin/libgwindow.so
 
 install: libgwindow.so
-	install -m755 libgwindow.so /usr/lib
+	install -m755 bin/libgwindow.so /usr/lib
 
 uninstall: install
 	rm -f /usr/lib/libgwindow.so
 
 clean:
-	rm -f *.o *.so func gclock mondrian bezier grtst cursTst react *\~
+	rm -f bin/* obj/*
 	cd R2Graph; make clean; cd ..
