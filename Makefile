@@ -1,4 +1,4 @@
-CFLAGS= -g -O0 -Wall -I/usr/X11R6/include -L/usr/X11R6/lib -L./bin/ -Iinclude/ -I. 
+CFLAGS= -g -O0 -Wall -I/usr/X11R6/include -L/usr/X11R6/lib -L./bin/ -Iinclude/ -I./R2Graph/include 
 CXX= g++ $(CFLAGS)
 
 .PHONY: install uninstall clean all create-dirs
