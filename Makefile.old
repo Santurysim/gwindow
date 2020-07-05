@@ -8,22 +8,25 @@ all: libgwindow.so
 samples: func gclock mondrian bezier cursTst react
 
 func: func.o libgwindow.so R2Graph/R2Graph.o
-	$(CXX) -o bin/func obj/func.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
+	$(CXX) -o bin/func obj/func.o -lX11 -lgwindow
 
 gclock: clock.o libgwindow.so R2Graph/R2Graph.o
-	$(CXX) -o bin/gclock obj/clock.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
+	$(CXX) -o bin/gclock obj/clock.o -lX11 -lgwindow
 
 mondrian: mondrian.o libgwindow.so R2Graph/R2Graph.o
-	$(CXX) -o bin/mondrian obj/mondrian.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
+	$(CXX) -o bin/mondrian obj/mondrian.o -lX11 -lgwindow
 
 bezier: bezier.o libgwindow.so R2Graph/R2Graph.o
-	$(CXX) -o bin/bezier obj/bezier.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
+	$(CXX) -o bin/bezier obj/bezier.o -lX11 -lgwindow
 
 cursTst: cursTst.o libgwindow.so R2Graph/R2Graph.o
-	$(CXX) -o bin/cursTst obj/cursTst.o R2Graph/obj/R2Graph.o -lX11 -lgwindow
+	$(CXX) -o bin/cursTst obj/cursTst.o -lX11 -lgwindow
 
 react: react.o libgwindow.so R2Graph/R2Graph.o
-	$(CXX) -o bin/react obj/react.o R2Graph/obj/R2Graph.o -lX11 -lrt -lgwindow
+	$(CXX) -o bin/react obj/react.o -lX11 -lrt -lgwindow
+
+grtst: src/grtst.cpp libgwindow.so
+	$(CXX) -o bin/grtst src/grtst.cpp -lX11 -lgwindow
 
 gwindow.o: src/gwindow.cpp gwindow.h create-dirs
 	$(CXX) -fPIC -c src/gwindow.cpp -o obj/gwindow.o
@@ -51,19 +54,19 @@ R2Graph/R2Graph.o:
 
 gwindow.h: R2Graph/include/R2Graph.h include/gwindow.h
 
-grtst: src/grtst.cpp libgwindow.so
-	$(CXX) -o bin/grtst src/grtst.cpp -lX11 -lgwindow
-
-libgwindow.so: gwindow.o
-	$(CXX) -shared obj/gwindow.o -o bin/libgwindow.so
+libgwindow.so: gwindow.o R2Graph/R2Graph.o
+	$(CXX) -shared obj/gwindow.o R2Graph/obj/R2Graph.o -o bin/libgwindow.so
 
 install: bin/libgwindow.so
+	install -d -m755 /usr/include/gwindow
 	install -m755 bin/libgwindow.so /usr/lib
-	install -m755 include/gwindow.h /usr/include
+	install -m644 include/gwindow.h /usr/include/gwindow/
+	sed -i -e 's/"R2Graph.h"/<R2Graph.h>/' /usr/include/gwindow/gwindow.h
+	install -m644 R2Graph/include/R2Graph.h /usr/include/gwindow
 
 uninstall:
 	rm -f /usr/lib/libgwindow.so
-	rm -f /usr/include/gwindow.h
+	rm -rf /usr/include/gwindow
 
 create-dirs:
 	mkdir -p bin obj
