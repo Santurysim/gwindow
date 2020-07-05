@@ -3,6 +3,7 @@
 
 AC_INIT([GWindow], [1.0])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_PROG_AR
 LT_INIT
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -11,6 +12,7 @@ AC_PROG_CXX
 AC_PROG_CC
 
 # Checks for libraries.
+#AC_CHECK_LIB([X11], [XOpenDisplay], [], [], [])
 
 # Checks for header files.
 AC_PATH_X

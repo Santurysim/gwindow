@@ -27,3 +27,5 @@ autom4te.cache
 /stamp-h1
 /ltmain.sh
 Makefile
+ar-lib
+m4/
