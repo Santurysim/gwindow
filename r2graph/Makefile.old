@@ -1,0 +1,16 @@
+CFLAGS = -g -O0 -Wall -I.
+CXX = g++ $(CFLAGS)
+
+.PHONY: clean create-dirs
+
+graphtst: graphtst.cpp R2Graph.o R2Graph.h
+	$(CXX) -o graphtst graphtst.cpp R2Graph.o
+
+R2Graph.o: R2Graph.cpp R2Graph.h
+	$(CXX) -c R2Graph.cpp -o R2Graph.o
+
+create-dirs:
+	mkdir -p obj bin
+
+clean:
+	rm -f bin/* obj/*

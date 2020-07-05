@@ -7,7 +7,7 @@
 #define _GWINDOW_H
 
 // Classes for simple 2-dimensional objects
-#include "R2Graph.h"
+#include <R2Graph.h>
 
 // include the X library headers
 extern "C" {
