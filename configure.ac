@@ -16,7 +16,7 @@ AC_PROG_CC
 
 # Checks for header files.
 AC_PATH_X
-AC_CHECK_HEADERS([limits.h stdlib.h string.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([limits.h stdlib.h string.h sys/time.h unistd.h math.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
@@ -24,7 +24,7 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
-AC_CHECK_FUNCS([floor memset select sqrt])
+AC_CHECK_FUNCS([memset select])
 
 AC_CONFIG_FILES([Makefile
                  r2graph/Makefile

@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/times.h>
-#include "gwindow.h"
+#include <gwindow.h>
 
 static const double DT_MAX = 10.;
 bool finished = false;

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "gwindow.h"
+#include <gwindow.h>
 
 static const int MAX_POINTS = 10;
 

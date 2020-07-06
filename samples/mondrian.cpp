@@ -10,7 +10,7 @@
 #include <sys/times.h>
 #include <signal.h>
 #include <deque>
-#include "gwindow.h"
+#include <gwindow.h>
 
 class Shape {
 public:

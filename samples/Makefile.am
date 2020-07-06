@@ -1,5 +1,5 @@
 noinst_PROGRAMS = bezier clock cursTst func grtst mondrian react
-AM_CXXFLAGS = -I../gwindow -I../r2graph
+AM_CXXFLAGS = -I${top_srcdir}/gwindow -I${top_srcdir}/r2graph
 LDADD = ../gwindow/gwindow.o ../r2graph/R2Graph.o
 AM_LDFLAGS = -lX11
 bezier_SOURCES = bezier.cpp

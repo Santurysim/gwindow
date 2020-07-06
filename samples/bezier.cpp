@@ -7,7 +7,7 @@
 #include <math.h>
 #include <assert.h>
 #include <X11/cursorfont.h>
-#include "gwindow.h"
+#include <gwindow.h>
 
 static const int MAX_POINTS = 8;
 static const double CATCH_DIST = 0.1;

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "gwindow.h"
+#include <gwindow.h>
 
 class MyWindow: public GWindow {
 protected:

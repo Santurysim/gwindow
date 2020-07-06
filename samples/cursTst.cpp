@@ -7,7 +7,7 @@
 #include <math.h>
 #include <assert.h>
 #include <X11/cursorfont.h>
-#include "gwindow.h"
+#include <gwindow.h>
 
 static const int NUM_CURSORS = XC_num_glyphs;
 

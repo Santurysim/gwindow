@@ -9,7 +9,7 @@
 #include <time.h>
 #include <sys/times.h>
 #include <signal.h>
-#include "gwindow.h"
+#include <gwindow.h>
 
 static void sigHandler(int sigID);      // Handler of Ctrl+C
 
