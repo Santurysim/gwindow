@@ -6,6 +6,8 @@
 #ifndef _GWINDOW_H
 #define _GWINDOW_H
 
+#include<stdint.h>
+
 // Classes for simple 2-dimensional objects
 #include <R2Graph.h>
 
@@ -15,6 +17,8 @@ extern "C" {
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
+
+#include<xcb/xcb.h>
 
 }
 
@@ -77,14 +81,23 @@ class GWindow: public ListHeader {
 public:
     // Xlib objects:
     // Display and screen are the same for all windows
-    static Display*     m_Display;
-    static int          m_Screen;
-    static Atom         m_WMProtocolsAtom;
-    static Atom         m_WMDeleteWindowAtom;
+    //static Display*     m_Display;
+    //static int          m_Screen;
+    //static Atom         m_WMProtocolsAtom;
+    //static Atom         m_WMDeleteWindowAtom;
 
-    Window   m_Window;
-    Pixmap   m_Pixmap;
-    GC       m_GC;
+	static xcb_connection_t*	m_xcbConnection;
+	static int					m_Screen;
+	static xcb_atom_t			m_WMProtocolsAtom;
+	static xcb_atom_t			m_WMDeleteWindowAtom;
+
+    // Window   m_Window;
+    // Pixmap   m_Pixmap;
+    // GC       m_GC;
+	uint32_t m_Window;
+	uint32_t m_Pixmap;
+	uint32_t m_GC;
+
 
     // Coordinates in window
     I2Point     m_WindowPosition;   // Window position in screen coord
