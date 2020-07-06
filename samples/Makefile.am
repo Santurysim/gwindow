@@ -1,4 +1,7 @@
-EXTRA_PROGRAMS = bezier clock cursTst func grtst mondrian react
+noinst_PROGRAMS = bezier clock cursTst func grtst mondrian react
+AM_CXXFLAGS = -I../gwindow -I../r2graph
+LDADD = ../gwindow/gwindow.o ../r2graph/R2Graph.o
+AM_LDFLAGS = -lX11
 bezier_SOURCES = bezier.cpp
 clock_SOURCES = clock.cpp
 cursTst_SOURCES = cursTst.cpp
@@ -6,3 +9,4 @@ func_SOURCES = func.cpp
 grtst_SOURCES = grtst.cpp
 mondrian_SOURCES = mondrian.cpp
 react_SOURCES = react.cpp
+react_LDFLAGS = -lX11 -lrt
