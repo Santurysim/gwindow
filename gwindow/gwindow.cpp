@@ -13,10 +13,10 @@
 
 #include "gwindow.h"
 
-Display* GWindow::m_Display = 0;
-int      GWindow::m_Screen = 0;
-Atom     GWindow::m_WMProtocolsAtom = 0;
-Atom     GWindow::m_WMDeleteWindowAtom = 0;
+xcb_connection_t* GWindow::m_Connection = 0;
+int				GWindow::m_Screen = 0;
+xcb_atom_t		GWindow::m_WMProtocolsAtom = 0;
+xcb_atom_t		GWindow::m_WMDeleteWindowAtom = 0;
 
 int        GWindow::m_NumWindows = 0;
 int        GWindow::m_NumCreatedWindows = 0;
@@ -28,13 +28,13 @@ ListHeader GWindow::m_FontList(
                &GWindow::m_FontList, &GWindow::m_FontList
            );
 
-bool GWindow::getNextEvent(XEvent& e) {
+bool GWindow::getNextEvent(xcb_generic_event_t& e) {
     long eventMask =  
-        ExposureMask | ButtonPressMask | ButtonReleaseMask
-        | KeyPressMask | PointerMotionMask
-        | StructureNotifyMask       // For resize event
-        | SubstructureNotifyMask
-        | FocusChangeMask;
+        XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+        | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_POINTER_MOTION
+        | XCB_EVENT_MASK_STRUCTURE_NOTIFY       // For resize event
+        | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+        | XCB_EVENT_MASK_FOCUS_CHANGE;
     return (
         XCheckMaskEvent(m_Display, eventMask, &e) != 0 ||
         XCheckTypedEvent(m_Display, ClientMessage, &e) != 0

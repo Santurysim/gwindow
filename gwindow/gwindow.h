@@ -13,11 +13,11 @@
 
 // include the X library headers
 extern "C" {
-
+/*
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
-
+*/
 #include<xcb/xcb.h>
 
 }
@@ -64,13 +64,13 @@ public:
 
 class FontDescriptor: public ListHeader {
 public:
-    Font font_id;
-    XFontStruct* font_struct;
+    // Font font_id;
+    // XFontStruct* font_struct;
+    xcb_font_t font_id
 
-    FontDescriptor(Font id, XFontStruct* fstr):
+    FontDescriptor(xcb_font_t id):
         ListHeader(),
-        font_id(id),
-        font_struct(fstr)
+        font_id(id)
     {}
 };
 
@@ -86,7 +86,7 @@ public:
     //static Atom         m_WMProtocolsAtom;
     //static Atom         m_WMDeleteWindowAtom;
 
-	static xcb_connection_t*	m_xcbConnection;
+	static xcb_connection_t*	m_Connection;
 	static int					m_Screen;
 	static xcb_atom_t			m_WMProtocolsAtom;
 	static xcb_atom_t			m_WMDeleteWindowAtom;
@@ -94,9 +94,9 @@ public:
     // Window   m_Window;
     // Pixmap   m_Pixmap;
     // GC       m_GC;
-	uint32_t m_Window;
-	uint32_t m_Pixmap;
-	uint32_t m_GC;
+	xcb_window_t m_Window;
+	xcb_pixmap_t m_Pixmap;
+	xcb_gcontext_t m_GC;
 
 
     // Coordinates in window
@@ -134,7 +134,8 @@ protected:
     int m_BorderWidth;
 
     // Clip rectangle
-    XRectangle          m_ClipRectangle;
+    // XRectangle       m_ClipRectangle;
+	xcb_rectangle_t		m_ClipRectangle;
     bool                m_BeginExposeSeries;
 
 public:
@@ -154,12 +155,12 @@ public:
     // All parameters have their default values, so the method can
     // be called without any parameters: createWindow()
     void createWindow(
-        GWindow* parentWindow = 0,              // parent window
-        int borderWidth = DEFAULT_BORDER_WIDTH, // border width
-        unsigned int wndClass = InputOutput,    // or InputOnly, CopyFromParent
-        Visual* visual = CopyFromParent,        //
-        unsigned long attributesValueMask = 0,  // which attributes are defined
-        XSetWindowAttributes* attributes = 0    // attributes structure
+        GWindow* parentWindow = 0,							// parent window
+        int borderWidth = DEFAULT_BORDER_WIDTH,				// border width
+        uint16_t wndClass = XCB_WINDOW_CLASS_INPUT_OUTPUT,	// or INPUT_ONLY, COPY_FROM_PARENT
+        xcb_visualid_t visual = XCB_COPY_FROM_PARENT,		//
+        unsigned long attributesValueMask = 0,				// which attributes are defined
+        void* attributes = NULL								// attributes structure
     );
     void createWindow(
         const I2Rectangle& frameRect, 
@@ -184,10 +185,10 @@ public:
 private:
     static GWindow* findWindow(Window w);
 
-    static FontDescriptor* findFont(Font fontID);
+    static FontDescriptor* findFont(xcb_font_t fontID);
     static void removeFontDescriptor(FontDescriptor* fd);
     static void addFontDescriptor(
-        Font fontID, XFontStruct* fontStructure
+        xcb_font_t fontID
     );
 
 public:
@@ -295,10 +296,11 @@ public:
     void recalculateMap();
 
     // Font methods
-    Font loadFont(const char* fontName, XFontStruct **fontStruct = 0);
-    void unloadFont(Font fontID);
-    XFontStruct* queryFont(Font fontID) const;
-    void setFont(Font fontID);
+	// Need to find out XFontStruct alternative
+    // xcb_font_t loadFont(const char* fontName, XFontStruct **fontStruct = 0);
+    // void unloadFont(xcb_font_t fontID);
+    // XFontStruct* queryFont(xcb_font_t fontID) const;
+    // void setFont(xcb_font_t fontID);
 
     // Depths supported
     bool supportsDepth24() const;
@@ -310,19 +312,19 @@ public:
     void swapBuffers();
 
     // Callbacks:
-    virtual void onExpose(XEvent& event);
-    virtual void onResize(XEvent& event); // event.xconfigure.width, height
-    virtual void onKeyPress(XEvent& event);
-    virtual void onButtonPress(XEvent& event);
-    virtual void onButtonRelease(XEvent& event);
-    virtual void onMotionNotify(XEvent& event);
-    virtual void onCreateNotify(XEvent& event);
-    virtual void onDestroyNotify(XEvent& event);
-    virtual void onFocusIn(XEvent& event);
-    virtual void onFocusOut(XEvent& event);
+    virtual void onExpose(xcb_generic_event& event);
+    virtual void onResize(xcb_generic_event& event); // event.xconfigure.width, height
+    virtual void onKeyPress(xcb_generic_event_t& event);
+    virtual void onButtonPress(xcb_generic_event_t& event);
+    virtual void onButtonRelease(xcb_generic_event_t& event);
+    virtual void onMotionNotify(xcb_generic_event_t& event);
+    virtual void onCreateNotify(xcb_generic_event_t& event);
+    virtual void onDestroyNotify(xcb_generic_event_t& event);
+    virtual void onFocusIn(xcb_generic_event_t& event);
+    virtual void onFocusOut(xcb_generic_event_t& event);
 
     // Message from Window Manager, such as "Close Window"
-    virtual void onClientMessage(XEvent& event);
+    virtual void onClientMessage(xcb_generic_event& event);
 
     // This method is called from the base implementation of
     // method "onClientMessage". It allows a user application
@@ -333,8 +335,8 @@ public:
     virtual bool onWindowClosing();
 
     // Message loop
-    static bool getNextEvent(XEvent& e);
-    static void dispatchEvent(XEvent& e);
+    static bool getNextEvent(xcb_generic_event_t& e);
+    static void dispatchEvent(xcb_generic_event_t& e);
     static void messageLoop(GWindow* = 0);
 
     // For dialog windows
