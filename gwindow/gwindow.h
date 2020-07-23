@@ -12,7 +12,7 @@
 #include <R2Graph.h>
 
 // include the X library headers
-extern "C" {
+/extern "C" {
 /*
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -20,7 +20,7 @@ extern "C" {
 */
 #include<xcb/xcb.h>
 
-}
+//}
 
 //===============================
 
@@ -183,7 +183,7 @@ public:
     static void releaseFonts();
 
 private:
-    static GWindow* findWindow(Window w);
+    static GWindow* findWindow(xcb_window_t w);
 
     static FontDescriptor* findFont(xcb_font_t fontID);
     static void removeFontDescriptor(FontDescriptor* fd);
@@ -312,19 +312,19 @@ public:
     void swapBuffers();
 
     // Callbacks:
-    virtual void onExpose(xcb_generic_event& event);
-    virtual void onResize(xcb_generic_event& event); // event.xconfigure.width, height
-    virtual void onKeyPress(xcb_generic_event_t& event);
-    virtual void onButtonPress(xcb_generic_event_t& event);
-    virtual void onButtonRelease(xcb_generic_event_t& event);
-    virtual void onMotionNotify(xcb_generic_event_t& event);
-    virtual void onCreateNotify(xcb_generic_event_t& event);
-    virtual void onDestroyNotify(xcb_generic_event_t& event);
-    virtual void onFocusIn(xcb_generic_event_t& event);
-    virtual void onFocusOut(xcb_generic_event_t& event);
+    virtual void onExpose(xcb_expose_event& event);
+    virtual void onResize(xcb_confugure_notify_event& event); // event.xconfigure.width, height
+    virtual void onKeyPress(xcb_generic_event_t* event);
+    virtual void onButtonPress(xcb_button_press_event_t* event);
+    virtual void onButtonRelease(xcb_button_release_event_t* event);
+    virtual void onMotionNotify(xcb_motion_notify_event_t* event);
+    virtual void onCreateNotify(xcb_create_notify_event_t* event);
+    virtual void onDestroyNotify(xcb_destroy_notify_event_t* event);
+    virtual void onFocusIn(xcb_focus_in_event_t* event);
+    virtual void onFocusOut(xcb_focus_out_event_t* event);
 
     // Message from Window Manager, such as "Close Window"
-    virtual void onClientMessage(xcb_generic_event& event);
+    virtual void onClientMessage(xcb_client_message_event& event);
 
     // This method is called from the base implementation of
     // method "onClientMessage". It allows a user application
