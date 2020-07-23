@@ -234,15 +234,16 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
             w->recalculateMap();
             if (w->m_Pixmap != 0) {
                 // Offscreen drawing is used
-                int depth = DefaultDepth(
-                    m_Connection, DefaultScreen(m_Connection)
+                int depth = m_Screen->root_depth; //DefaultDepth(
+                //    m_Connection, DefaultScreen(m_Connection)
+                //);
+                ::xcb_free_pixmap(m_Connection, w->m_Pixmap);
+                w->m_Pixmap = xcb_generate_id(m_Connection);
+				::xcb_create_pixmap(
+                    m_Connection, depth, w->m_Pixmap,
+					w->m_Window, newWidth, newHeight
                 );
-                ::XFreePixmap(m_Connection, w->m_Pixmap);
-                w->m_Pixmap = ::XCreatePixmap(
-                    m_Connection, w->m_Window,
-                    newWidth, newHeight,
-                    depth
-                );
+				// TODO: pixmap might not be ready before onResize
             }
             w->onResize(configureEvent);
             w->redraw();
@@ -698,6 +699,8 @@ bool GWindow::initX() {
     //+++
 	
 	xcb_intern_atom_cookie_t WMProtocolsCookie, WMDeleteWindowCookie;
+	xcb_intern_atom_reply_t *reply;
+	xcb_generic_error_t *atomError;
 
     m_Connection = xcb_connect(NULL, &m_Screen);
     if (m_Connection == 0) {
@@ -720,15 +723,46 @@ bool GWindow::initX() {
 		strlen("WM_DELETE_WINDOW"),
         "WM_DELETE_WINDOW"
     );
-	// TODO Retrieve atoms
+
+	reply = xcb_intern_atom_reply(m_Connection,
+			WMProtocolsCookie, &atomError);
+	if(reply){
+		m_WMProtocolsAtom = reply->atom;
+		free(reply);
+	}
+	else{
+		fprintf(stderr, "Failed to get WM_Protocols atom: xcb error %d\n", atomError->error_code);
+		return false;
+	}
+
+	reply = xcb_intern_atom_reply(m_Connection,
+			WMDeleteWindowCookie, &atomError);
+	if(reply){
+		m_WMDeleteWindowAtom = reply->atom;
+		free(reply);
+	}
+	else{
+		fprintf(stderr, "Failed to get WM_DELETE_WINDOW atom: xcb error %d\n", atomError->error_code);
+		return false;
+	}
+
+	m_ScreenInfo = NULL;
+	for(xcb_screen_iterator_t iter = xcb_setup_roots_iterator(xcb_get_setup(m_Connection)),
+			tempScreen = m_Screen; iter.rem; --tempScreen, xcb_screen_next(&iter)){
+		if(tempScreen == 0){
+			m_ScreenInfo = iter.data;
+		}
+	}
+	if(!m_ScreenInfo){
+		fprintf(stderr, "Failed to get screen info");
+	}
     return true;
 }
 
 void GWindow::closeX() {
     if (m_Connection == 0)
         return;
-
-    releaseFonts();
+	releaseFonts();
 
     //+++
     // printf("Closing display...\n");
@@ -741,13 +775,13 @@ void GWindow::closeX() {
 int GWindow::screenMaxX() {
     if (m_Connection == 0)
         initX();
-    return XDisplayWidth(m_Connection, m_Screen);
+    return m_ScreenInfo->width_in_pixels;
 }
 
 int GWindow::screenMaxY() {
     if (m_Connection == 0)
         initX();
-    return XDisplayHeight(m_Connection, m_Screen);
+    return m_ScreenInfo->height_in_pixels;
 }
 
 void GWindow::drawFrame() {

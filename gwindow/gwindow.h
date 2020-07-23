@@ -88,6 +88,7 @@ public:
 
 	static xcb_connection_t*	m_Connection;
 	static int					m_Screen;
+	static xcb_screen_t*		m_ScreenInfo;
 	static xcb_atom_t			m_WMProtocolsAtom;
 	static xcb_atom_t			m_WMDeleteWindowAtom;
 
