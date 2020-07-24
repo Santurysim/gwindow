@@ -12,14 +12,14 @@
 #include <R2Graph.h>
 
 // include the X library headers
-/extern "C" {
+//extern "C" {
 /*
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
 */
 #include<xcb/xcb.h>
-
+#include<xcb/xcb_atom.h>
 //}
 
 //===============================
@@ -66,11 +66,13 @@ class FontDescriptor: public ListHeader {
 public:
     // Font font_id;
     // XFontStruct* font_struct;
-    xcb_font_t font_id
+    xcb_font_t font_id;
+    xcb_query_font_reply_t *font_info;
 
-    FontDescriptor(xcb_font_t id):
+    FontDescriptor(xcb_font_t id, xcb_query_font_reply_t *info):
         ListHeader(),
-        font_id(id)
+        font_id(id),
+        font_info(info)
     {}
 };
 
@@ -156,12 +158,12 @@ public:
     // All parameters have their default values, so the method can
     // be called without any parameters: createWindow()
     void createWindow(
-        GWindow* parentWindow = 0,							// parent window
-        int borderWidth = DEFAULT_BORDER_WIDTH,				// border width
-        uint16_t wndClass = XCB_WINDOW_CLASS_INPUT_OUTPUT,	// or INPUT_ONLY, COPY_FROM_PARENT
-        xcb_visualid_t visual = XCB_COPY_FROM_PARENT,		//
-        unsigned long attributesValueMask = 0,				// which attributes are defined
-        void* attributes = NULL								// attributes structure
+        GWindow* parentWindow = 0,							            // parent window
+        int borderWidth = DEFAULT_BORDER_WIDTH,				            // border width
+        xcb_window_class_t wndClass = XCB_WINDOW_CLASS_INPUT_OUTPUT,	// or INPUT_ONLY, COPY_FROM_PARENT
+        xcb_visualid_t visual = XCB_COPY_FROM_PARENT,		            //
+        uint32_t attributesValueMask = 0,				            // which attributes are defined
+        void* attributes = NULL								            // attributes structure
     );
     void createWindow(
         const I2Rectangle& frameRect, 
@@ -189,7 +191,7 @@ private:
     static FontDescriptor* findFont(xcb_font_t fontID);
     static void removeFontDescriptor(FontDescriptor* fd);
     static void addFontDescriptor(
-        xcb_font_t fontID
+        xcb_font_t fontID, xcb_query_font_reply_t* fontInfo
     );
 
 public:
@@ -297,11 +299,11 @@ public:
     void recalculateMap();
 
     // Font methods
-	// Need to find out XFontStruct alternative
-    // xcb_font_t loadFont(const char* fontName, XFontStruct **fontStruct = 0);
-    // void unloadFont(xcb_font_t fontID);
-    // XFontStruct* queryFont(xcb_font_t fontID) const;
-    // void setFont(xcb_font_t fontID);
+	// Need to find out xcb_query_font_reply_t alternative
+    xcb_font_t loadFont(const char* fontName, xcb_query_font_reply_t **fontStruct = 0);
+    void unloadFont(xcb_font_t fontID);
+    xcb_query_font_reply_t* queryFont(xcb_font_t fontID) const;
+    void setFont(xcb_font_t fontID);
 
     // Depths supported
     bool supportsDepth24() const;
@@ -313,9 +315,9 @@ public:
     void swapBuffers();
 
     // Callbacks:
-    virtual void onExpose(xcb_expose_event& event);
-    virtual void onResize(xcb_confugure_notify_event& event); // event.xconfigure.width, height
-    virtual void onKeyPress(xcb_generic_event_t* event);
+    virtual void onExpose(xcb_expose_event_t* event);
+    virtual void onResize(xcb_configure_notify_event_t* event); // event.xconfigure.width, height
+    virtual void onKeyPress(xcb_key_press_event_t* event);
     virtual void onButtonPress(xcb_button_press_event_t* event);
     virtual void onButtonRelease(xcb_button_release_event_t* event);
     virtual void onMotionNotify(xcb_motion_notify_event_t* event);
@@ -325,7 +327,7 @@ public:
     virtual void onFocusOut(xcb_focus_out_event_t* event);
 
     // Message from Window Manager, such as "Close Window"
-    virtual void onClientMessage(xcb_client_message_event& event);
+    virtual void onClientMessage(xcb_client_message_event_t* event);
 
     // This method is called from the base implementation of
     // method "onClientMessage". It allows a user application
@@ -336,8 +338,8 @@ public:
     virtual bool onWindowClosing();
 
     // Message loop
-    static bool getNextEvent(xcb_generic_event_t& e);
-    static void dispatchEvent(xcb_generic_event_t& e);
+    static bool getNextEvent(xcb_generic_event_t*& e);
+    static void dispatchEvent(xcb_generic_event_t* e);
     static void messageLoop(GWindow* = 0);
 
     // For dialog windows

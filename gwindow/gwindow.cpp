@@ -95,7 +95,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
 		if(!w) return;
         // printf("Expose event.\n");
         if (w->m_BeginExposeSeries) {
-            w->m_ClipRectangle.x = exposeEvent->x
+            w->m_ClipRectangle.x = exposeEvent->x;
             w->m_ClipRectangle.y = exposeEvent->y;
             w->m_ClipRectangle.width = exposeEvent->width;
             w->m_ClipRectangle.height = exposeEvent->height;
@@ -170,8 +170,8 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
         // printf("CreateNotify event: m_Window=%d\n", (int) w->m_Window);
         w->onCreateNotify(createNotifyEvent);
     } else if (event->response_type == XCB_DESTROY_NOTIFY) {
-		xcb_create_notify_event_t *createNotifyEvent = (xcb_create_notify_event_t*)event;
-		w = findWindow(createNotifyEvent->event);
+		xcb_destroy_notify_event_t *destroyNotifyEvent = (xcb_destroy_notify_event_t*)event;
+		w = findWindow(destroyNotifyEvent->event);
 		if(!w) return;
         /*
         printf(
@@ -209,13 +209,13 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
         w->onFocusIn(focusInEvent);
     } else if (event->response_type == XCB_FOCUS_OUT) {
 		xcb_focus_out_event_t *focusOutEvent = (xcb_focus_out_event_t*)event;
-		w = foutdWoutdow(focusOutEvent->event);
+		w = findWindow(focusOutEvent->event);
 		if(!w) return;
         // printf("FocusOut event.\n");
         w->onFocusOut(focusOutEvent);
     // } else if (event->response_type == ResizeRequest) {
     } else if (event->response_type == XCB_CONFIGURE_NOTIFY) {
-		xcb_focus_in_event_t *configureEvent = (xcb_focus_in_event_t*)event;
+		xcb_configure_notify_event_t *configureEvent = (xcb_configure_notify_event_t*)event;
 		w = findWindow(configureEvent->window);
 		if(!w) return;
         int newWidth = configureEvent->width;
@@ -234,7 +234,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
             w->recalculateMap();
             if (w->m_Pixmap != 0) {
                 // Offscreen drawing is used
-                int depth = m_Screen->root_depth; //DefaultDepth(
+                int depth = m_ScreenInfo->root_depth; //DefaultDepth(
                 //    m_Connection, DefaultScreen(m_Connection)
                 //);
                 ::xcb_free_pixmap(m_Connection, w->m_Pixmap);
@@ -243,6 +243,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
                     m_Connection, depth, w->m_Pixmap,
 					w->m_Window, newWidth, newHeight
                 );
+                xcb_flush(m_Connection);
 				// TODO: pixmap might not be ready before onResize
             }
             w->onResize(configureEvent);
@@ -253,7 +254,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
 		w = findWindow(clientMessageEvent->window);
 		if(!w) return;
         w->onClientMessage(clientMessageEvent);
-    
+    }
 	free(event);
 }
 
@@ -261,7 +262,7 @@ void GWindow::doModal() {
     messageLoop(this);
 }
 
-GWindow* GWindow::findWindow(Window w) {
+GWindow* GWindow::findWindow(xcb_window_t w) {
     ListHeader* p = m_WindowList.next;
     int i = 0;
     while (i < m_NumWindows && p != &m_WindowList) {
@@ -376,10 +377,10 @@ GWindow::GWindow(
 void GWindow::createWindow(
     GWindow* parentWindow /* = 0 */,                // parent window
     int borderWidth       /* = DEFAULT_BORDER_WIDTH */,
-    unsigned int wndClass /* = InputOutput */,      // InputOnly, CopyFromParent
-    Visual* visual        /* = CopyFromParent */,
-    unsigned long attributesValueMask /* = 0 */,    // which attr. are defined
-    XSetWindowAttributes* attributes  /* = 0 */     // attributes structure
+    xcb_window_class_t wndClass /* = InputOutput */,      // InputOnly, CopyFromParent
+    xcb_visualid_t visual        /* = CopyFromParent */,
+    uint32_t attributesValueMask /* = 0 */,    // which attr. are defined
+    void* attributes  /* = 0 */     // attributes structure
 ) {
     // Include a window in the head of the window list
     link(*(m_WindowList.next));
@@ -410,35 +411,53 @@ void GWindow::createWindow(
     }
 
     if (m_bgColorName != 0) {
-        XColor bg;
-        XParseColor(
-            m_Connection,
-            DefaultColormap(m_Connection, m_Screen),
-            m_bgColorName,
-            &bg
-        );
-        XAllocColor(
-            m_Connection, DefaultColormap(m_Connection, m_Screen), &bg
-        );
-        m_bgPixel = bg.pixel;
+        xcb_alloc_named_color_cookie_t cookie = xcb_alloc_named_color_unchecked(
+                                                    m_Connection,
+                                                    m_ScreenInfo->default_colormap,
+                                                    strlen(m_bgColorName),
+                                                    m_bgColorName
+                                                );
+        xcb_alloc_named_color_reply_t *bg = xcb_alloc_named_color_reply(
+                                                m_Connection, cookie, NULL
+                                            );
+        m_bgPixel = bg->pixel;
+        // XParseColor(
+        //    m_Connection,
+        //    DefaultColormap(m_Connection, m_Screen),
+        //    m_bgColorName,
+        //    &bg
+        //);
+        // XAllocColor(
+        //    m_Connection, DefaultColormap(m_Connection, m_Screen), &bg
+        //);
     } else {
-        m_bgPixel = WhitePixel(m_Connection, m_Screen);
+        m_bgPixel = m_ScreenInfo->white_pixel;
     }
 
     if (m_fgColorName != 0) {
-        XColor fg;
-        XParseColor(
-            m_Connection,
-            DefaultColormap(m_Connection, m_Screen),
-            m_fgColorName,
-            &fg
-        );
-        XAllocColor(
-            m_Connection, DefaultColormap(m_Connection, m_Screen), &fg
-        );
-        m_fgPixel = fg.pixel;
+        xcb_alloc_named_color_cookie_t cookie = xcb_alloc_named_color_unchecked(
+                                                    m_Connection,
+                                                    m_ScreenInfo->default_colormap,
+                                                    strlen(m_fgColorName),
+                                                    m_fgColorName
+                                                );
+        xcb_alloc_named_color_reply_t *fg = xcb_alloc_named_color_reply(
+                                                m_Connection, cookie, NULL
+                                            );
+        m_fgPixel = fg->pixel;
+        // XColor fg;
+        // XParseColor(
+        //     m_Connection,
+        //     DefaultColormap(m_Connection, m_Screen),
+        //     m_fgColorName,
+        //     &fg
+        // );
+        // XAllocColor(
+        //     m_Connection, DefaultColormap(m_Connection, m_Screen), &fg
+        // );
+        // m_fgPixel = fg.pixel;
     } else {
-        m_fgPixel = BlackPixel(m_Connection, m_Screen);
+        m_fgPixel = m_ScreenInfo->black_pixel;
     }
 
     m_BorderWidth = borderWidth;
@@ -457,83 +476,132 @@ void GWindow::createWindow(
     );
     ...*/
 
-    Window parent;
+    xcb_window_t parent;
     if (parentWindow != 0 && parentWindow->m_Window != 0)
         parent = parentWindow->m_Window;
     else
-        parent = DefaultRootWindow(m_Connection);
-    XSetWindowAttributes windowAttributes;
-    XSetWindowAttributes* winAttributes = &windowAttributes;
-    if (attributesValueMask != 0 && attributes != 0)
-        winAttributes = attributes;
-    else
-        memset(&windowAttributes, 0, sizeof(windowAttributes));
+        parent = m_ScreenInfo->root;
 
-    m_Window = XCreateWindow(
+    // XSetWindowAttributes windowAttributes;
+    // XSetWindowAttributes* winAttributes = &windowAttributes;
+    // if (attributesValueMask != 0 && attributes != 0)
+    //     winAttributes = attributes;
+    // else
+    //     memset(&windowAttributes, 0, sizeof(windowAttributes));
+
+    // m_Window = XCreateWindow(
+    //     m_Connection,
+    //     parent,
+    //     m_WindowPosition.x,
+    //     m_WindowPosition.y,
+    //     m_IWinRect.width(),
+    //     m_IWinRect.height(),
+    //     m_BorderWidth,
+    //     CopyFromParent,
+    //     wndClass,
+    //     visual,
+    //     attributesValueMask,
+    //     winAttributes
+    // );
+
+    m_Window = xcb_generate_id(m_Connection);
+    xcb_create_window(
         m_Connection,
+        XCB_COPY_FROM_PARENT,
+        m_Window,
         parent,
         m_WindowPosition.x,
         m_WindowPosition.y,
         m_IWinRect.width(),
         m_IWinRect.height(),
         m_BorderWidth,
-        CopyFromParent,
         wndClass,
         visual,
         attributesValueMask,
-        winAttributes
+        attributes
     );
 
     m_WindowCreated = true;
-    XSetStandardProperties(
+    // XSetStandardProperties(
+    //     m_Connection,
+    //     m_Window,
+    //     m_WindowTitle,          // Window name
+    //     m_WindowTitle,          // Icon name
+    //     None,                   // Icon pixmap
+    //     0,                      // argv
+    //     0,                      // argc
+    //     0                       // XSizeHints
+    // );
+    xcb_change_property(m_Connection, XCB_PROP_MODE_REPLACE, m_Window,
+                        XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, strlen(m_WindowTitle), m_WindowTitle);
+    xcb_change_property(m_Connection, XCB_PROP_MODE_REPLACE, m_Window,
+                        XCB_ATOM_WM_ICON_NAME, XCB_ATOM_STRING, 8, strlen(m_WindowTitle), m_WindowTitle);
+
+    // XSelectInput( 
+    //     m_Connection,
+    //     m_Window,
+    //     ExposureMask | ButtonPressMask | ButtonReleaseMask
+    //         | KeyPressMask | PointerMotionMask
+    //         | StructureNotifyMask       // For resize event
+    //         | SubstructureNotifyMask
+    //         | FocusChangeMask
+    // );
+    long eventMask =  
+       XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+       | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_POINTER_MOTION
+       | XCB_EVENT_MASK_STRUCTURE_NOTIFY       // For resize event
+       | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+       | XCB_EVENT_MASK_FOCUS_CHANGE;
+    xcb_change_window_attributes(
         m_Connection,
         m_Window,
-        m_WindowTitle,          // Window name
-        m_WindowTitle,          // Icon name
-        None,                   // Icon pixmap
-        0,                      // argv
-        0,                      // argc
-        0                       // XSizeHints
-    );
-    XSelectInput(
-        m_Connection,
-        m_Window,
-        ExposureMask | ButtonPressMask | ButtonReleaseMask
-            | KeyPressMask | PointerMotionMask
-            | StructureNotifyMask       // For resize event
-            | SubstructureNotifyMask
-            | FocusChangeMask
-    );
-    m_GC = XCreateGC(
-        m_Connection,
-        m_Window,
-        0,
-        0
-    );
-    XSetBackground(
-        m_Connection,
-        m_GC,
-        m_bgPixel
-    );
-    XSetForeground(
-        m_Connection,
-        m_GC,
-        m_fgPixel
-    );
-    XClearWindow(
-        m_Connection,
-        m_Window
-    );
-    XMapRaised(
-        m_Connection,
-        m_Window
+        XCB_CW_EVENT_MASK,
+        &eventMask
     );
 
-    // To prevent application closing on pressing the window close box
-    XSetWMProtocols(
-        m_Connection, m_Window,
-        &m_WMDeleteWindowAtom, 1
-    );
+    // m_GC = XCreateGC(
+    //     m_Connection,
+    //     m_Window,
+    //     0,
+    //     0
+    // );
+
+    // XSetBackground(
+    //     m_Connection,
+    //     m_GC,
+    //     m_bgPixel
+    // );
+    // XSetForeground(
+    //     m_Connection,
+    //     m_GC,
+    //     m_fgPixel
+    // );
+    // XClearWindow(
+    //     m_Connection,
+    //     m_Window
+    // );
+    // XMapRaised(
+    //     m_Connection,
+    //     m_Window
+    // );
+
+    // // To prevent application closing on pressing the window close box
+    // XSetWMProtocols(
+    //     m_Connection, m_Window,
+    //     &m_WMDeleteWindowAtom, 1
+    // );
+
+    uint32_t gcValues[2] = {m_fgPixel, m_bgPixel};
+    m_GC = xcb_generate_id(m_Connection);
+    xcb_create_gc(m_Connection, m_GC, m_Window, XCB_GC_FOREGROUND | XCB_GC_BACKGROUND, gcValues);
+
+    xcb_clear_area(m_Connection, 0, m_Window, 0, 0, 0, 0);
+    xcb_map_window(m_Connection, m_Window);
+    uint32_t stackTop = XCB_STACK_MODE_ABOVE;
+    xcb_configure_window(m_Connection, m_Window, XCB_CONFIG_WINDOW_STACK_MODE, &stackTop);
+
+    xcb_change_property(m_Connection, XCB_PROP_MODE_REPLACE, m_Window,
+                m_WMProtocolsAtom, XCB_ATOM_ATOM, 32, 1, &m_WMDeleteWindowAtom);
 
     // printf("In createWindow: m_Window = %d\n", (int) m_Window);
 }
@@ -542,8 +610,8 @@ void GWindow::setWindowTitle(const char* title) {
     strncpy(m_WindowTitle, title, 127);
     m_WindowTitle[127] = 0;
 
-    if (m_WindowCreated)
-        XStoreName(m_Connection, m_Window, m_WindowTitle);
+    if (m_WindowCreated);
+//        XStoreName(m_Connection, m_Window, m_WindowTitle);
 }
 
 void GWindow::setBgColorName(const char* colorName) {
@@ -671,24 +739,27 @@ void GWindow::destroyWindow() {
     m_NumCreatedWindows--;
 
     if (m_GC != 0) {
-        XFreeGC(
-            m_Connection,
-            m_GC
-        );
+        // XFreeGC(
+        //     m_Connection,
+        //     m_GC
+        // );
+        xcb_free_gc(m_Connection, m_GC);
         m_GC = 0;
     }
     if (m_Pixmap != 0) {
-        XFreePixmap(
-            m_Connection,
-            m_Pixmap
-        );
+        // XFreePixmap(
+        //     m_Connection,
+        //     m_Pixmap
+        // );
+        xcb_free_pixmap(m_Connection, m_Pixmap);
         m_Pixmap = 0;
     }
     if (m_Window != 0) {
-        XDestroyWindow(
-            m_Connection,
-            m_Window
-        );
+        // XDestroyWindow(
+        //     m_Connection,
+        //     m_Window
+        // );
+        xcb_destroy_window(m_Connection, m_Window);
         m_Window = 0;
     }
 }
@@ -747,8 +818,9 @@ bool GWindow::initX() {
 	}
 
 	m_ScreenInfo = NULL;
-	for(xcb_screen_iterator_t iter = xcb_setup_roots_iterator(xcb_get_setup(m_Connection)),
-			tempScreen = m_Screen; iter.rem; --tempScreen, xcb_screen_next(&iter)){
+    int tempScreen = m_Screen;
+	for(xcb_screen_iterator_t iter = xcb_setup_roots_iterator(xcb_get_setup(m_Connection));
+        iter.rem; --tempScreen, xcb_screen_next(&iter)){
 		if(tempScreen == 0){
 			m_ScreenInfo = iter.data;
 		}
@@ -942,7 +1014,7 @@ void GWindow::drawLine(
     const I2Point& p1, const I2Point& p2, bool offscreen /* = false */
 ) {
     //... drawLine(invMap(p1), invMap(p2));
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
@@ -951,12 +1023,16 @@ void GWindow::drawLine(
         abs(p2.x) < SHRT_MAX && abs(p2.y) < SHRT_MAX
     )
     {
-        ::XDrawLine(
+        xcb_point_t xp1, xp2;
+        xp1.x = p1.x; xp1.y = p1.y;
+        xp2.x = p2.x; xp2.y = p2.y;
+        xcb_point_t points[2] = {xp1, xp2};
+        ::xcb_poly_line(
             m_Connection,
+            XCB_COORD_MODE_ORIGIN,
             draw,
             m_GC,
-            p1.x, p1.y,
-            p2.x, p2.y
+            2, points
         );
     } else {
         R2Point c1, c2;
@@ -969,12 +1045,16 @@ void GWindow::drawLine(
                 c1, c2
             )
         ) {
-            ::XDrawLine(
+            xcb_point_t xp1, xp2;
+            xp1.x = (int)(c1.x + 0.5); xp1.y = (int)(c1.y + 0.5);
+            xp2.x = (int)(c2.x + 0.5); xp2.y = (int)(c2.y + 0.5);
+            xcb_point_t points[2] = {xp1, xp2};
+            ::xcb_poly_line(
                 m_Connection,
+                XCB_COORD_MODE_ORIGIN,
                 draw,
                 m_GC,
-                (int)(c1.x + 0.5), (int)(c1.y + 0.5),
-                (int)(c2.x + 0.5), (int)(c2.y + 0.5)
+                2, points
             );
         }
     }
@@ -996,7 +1076,7 @@ void GWindow::drawLine(
 void GWindow::drawLine(
     const R2Point& p1, const R2Point& p2, bool offscreen /* = false */
 ) {
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
@@ -1006,13 +1086,16 @@ void GWindow::drawLine(
 
         // printf("Line from (%d, %d) to (%d, %d)\n",
         //     ip1.x, ip1.y, ip2.x, ip2.y);
-
-        ::XDrawLine(
+        xcb_point_t xp1, xp2;
+        xp1.x = ip1.x; xp1.y = ip1.y;
+        xp2.x = ip2.x; xp2.y = ip2.y;
+        xcb_point_t points[2] = {xp1, xp2};
+        ::xcb_poly_line(
             m_Connection,
+            XCB_COORD_MODE_ORIGIN,
             draw,
             m_GC,
-            ip1.x, ip1.y,
-            ip2.x, ip2.y
+            2, points
         );
     }
 }
@@ -1030,20 +1113,18 @@ void GWindow::drawLine(
 }
 
 void GWindow::fillRectangle(const I2Rectangle& r, bool offscreen /* = false */) {
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
-    ::XFillRectangle(
-        m_Connection,
-        draw,
-        m_GC,
-        r.left(), r.top(), r.width(), r.height()
-    );
+    xcb_rectangle_t xrectangle;
+    xrectangle.height = r.height(); xrectangle.width = r.width();
+    xrectangle.x = r.left(); xrectangle.y = r.top();
+    xcb_poly_fill_rectangle(m_Connection, draw, m_GC, 1, &xrectangle);
 }
 
 void GWindow::fillRectangle(const R2Rectangle& r, bool offscreen /* = false */) {
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
@@ -1053,13 +1134,11 @@ void GWindow::fillRectangle(const R2Rectangle& r, bool offscreen /* = false */) 
     //+++ printf("leftTop = (%d, %d), rightBottom = (%d, %d)\n",
     //+++     leftTop.x, leftTop.y, rightBottom.x, rightBottom.y);
 
-    ::XFillRectangle(
-        m_Connection,
-        draw,
-        m_GC,
-        leftTop.x, leftTop.y,
-        rightBottom.x - leftTop.x, rightBottom.y - leftTop.y
-    );
+    xcb_rectangle_t xrectangle;
+    xrectangle.height = rightBottom.y - leftTop.y;
+    xrectangle.width = rightBottom.x - leftTop.y;
+    xrectangle.x = leftTop.x; xrectangle.y = leftTop.y;
+    xcb_poly_fill_rectangle(m_Connection, draw, m_GC, 1, &xrectangle);
 }
 
 void GWindow::fillPolygon(
@@ -1082,60 +1161,49 @@ void GWindow::fillPolygon(
     if (numPoints <= 2)
         return;
 
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
 
-    XPoint* pnt = new XPoint[numPoints];
+    xcb_point_t* pnt = new xcb_point_t[numPoints];
     pnt[0].x = (short) points[0].x;
     pnt[0].y = (short) points[0].y;
     for (int i = 1; i < numPoints; ++i) {
         pnt[i].x = (short) points[i].x;
         pnt[i].y = (short) points[i].y;
     }
-    ::XFillPolygon(
-        m_Connection,
-        draw,
-        m_GC,
-        pnt,
-        numPoints,
-        Convex,
-        CoordModeOrigin
-    );
+    xcb_fill_poly(m_Connection, draw, m_GC, XCB_POLY_SHAPE_CONVEX,
+                  XCB_COORD_MODE_ORIGIN, numPoints, pnt);
     delete[] pnt;
 }
 
 void GWindow::fillEllipse(const I2Rectangle& r, bool offscreen /* = false */) {
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
-    ::XFillArc(
-        m_Connection,
-        draw,
-        m_GC,
-        r.left(), r.top(), r.width(), r.height(),
-        0, 360*64
-    );
+    xcb_arc_t xarc;
+    xarc.x = r.left(); xarc.y = r.top();
+    xarc.width = r.width(); xarc.height = r.height();
+    xarc.angle1 = 0; xarc.angle2 = 360 << 6;
+    xcb_poly_fill_arc(m_Connection, draw, m_GC, 1, &xarc);
 }
 
 void GWindow::fillEllipse(const R2Rectangle& r, bool offscreen /* = false */) {
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
     I2Point leftTop = map(R2Point(r.left(), r.top()));
     I2Point rightBottom = map(R2Point(r.right(), r.bottom()));
 
-    ::XFillArc(
-        m_Connection,
-        draw,
-        m_GC,
-        leftTop.x, leftTop.y,
-        rightBottom.x - leftTop.x, rightBottom.y - leftTop.y,
-        0, 360*64
-    );
+    xcb_arc_t xarc;
+    xarc.x = leftTop.x; xarc.y = leftTop.y;
+    xarc.width = rightBottom.x - leftTop.x;
+    xarc.height = rightBottom.y - leftTop.y;
+    xarc.angle1 = 0; xarc.angle2 = 360 << 6;
+    xcb_poly_fill_arc(m_Connection, draw, m_GC, 1, &xarc);
 }
 
 void GWindow::redraw() {
@@ -1148,26 +1216,23 @@ void GWindow::redraw() {
 }
 
 void GWindow::redrawRectangle(const I2Rectangle& r) {
-    XRectangle rect;
+    xcb_rectangle_t rect;
     rect.x = (short) r.left(); rect.y = (short) r.top();
     rect.width = (unsigned short) r.width(); 
     rect.height = (unsigned short) r.height();
-    XSetClipRectangles(
-        m_Connection, m_GC, 
-        0, 0,                   // Clip origin
-        &rect, 1, Unsorted
-    );
+    xcb_set_clip_rectangles(m_Connection, XCB_CLIP_ORDERING_UNSORTED,
+                        m_GC, 0, 0, 1, &rect);
 
-    XEvent e;
+    xcb_expose_event_t e;
     memset(&e, 0, sizeof(e));
-    e.type = Expose;
-    e.xany.window = m_Window;
-    e.xexpose.x = r.left();
-    e.xexpose.y = r.top();
-    e.xexpose.width = r.width();
-    e.xexpose.height = r.height();
-    e.xexpose.count = 0;
-    XSendEvent(m_Connection, m_Window, 0, ExposureMask, &e);
+    e.response_type = XCB_EXPOSE;
+    e.window = m_Window;
+    e.x = r.left();
+    e.y = r.top();
+    e.width = r.width();
+    e.height = r.height();
+    e.count = 0;
+    xcb_send_event(m_Connection, 0, m_Window, XCB_EVENT_MASK_EXPOSURE, (char*)&e);
 }
 
 void GWindow::redrawRectangle(const R2Rectangle& r) {
@@ -1190,18 +1255,11 @@ void GWindow::drawString(
     if (l < 0)
         l = strlen(str);
 
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
-    ::XDrawString(
-        m_Connection,
-        draw,
-        m_GC,
-        x, y,
-        str, 
-        l
-    );
+    xcb_image_text_8(m_Connection, l, draw, m_GC, x, y, str);
 }
 
 void GWindow::drawString(
@@ -1223,40 +1281,41 @@ void GWindow::drawString(
 }
 
 unsigned long GWindow::allocateColor(const char* colorName) {
-    XColor c;
-    XParseColor(
-        m_Connection, 
-        DefaultColormap(m_Connection, m_Screen), 
-        colorName,
-        &c
+    xcb_alloc_named_color_reply_t *c;
+    xcb_alloc_named_color_cookie_t cookie = 
+        xcb_alloc_named_color(
+            m_Connection,
+            m_ScreenInfo->default_colormap,
+            strlen(colorName),
+            colorName
     );
-    XAllocColor(
-        m_Connection, DefaultColormap(m_Connection, m_Screen), &c
-    );
-    return c.pixel;
+    c = xcb_alloc_named_color_reply(m_Connection, cookie, NULL);
+    return c->pixel;
 }
 
 void GWindow::setBackground(unsigned long bg) {
-    XSetBackground(m_Connection, m_GC, bg);
+    uint32_t tempBg = bg;
+    xcb_change_gc(m_Connection, m_GC, XCB_GC_BACKGROUND, &bg);
     m_bgPixel = bg;
 }
 
 void GWindow::setBackground(const char* colorName) {
     // printf("Setting bg color: %s\n", colorName);
     unsigned long bgPixel = allocateColor(colorName);
-    XSetBackground(m_Connection, m_GC, bgPixel);
+    xcb_change_gc(m_Connection, m_GC, XCB_GC_BACKGROUND, &bgPixel);
     m_bgPixel = bgPixel;
 }
 
 void GWindow::setForeground(unsigned long fg) {
-    XSetForeground(m_Connection, m_GC, fg);
+    uint32_t tempFg = fg;
+    xcb_change_gc(m_Connection, m_GC, XCB_GC_FOREGROUND, &fg);
     m_fgPixel = fg;
 }
 
 void GWindow::setForeground(const char* colorName) {
     // printf("Setting fg color: %s\n", colorName);
     unsigned long fgPixel = allocateColor(colorName);
-    XSetForeground(m_Connection, m_GC, fgPixel);
+    xcb_change_gc(m_Connection, m_GC, XCB_GC_FOREGROUND, &fgPixel);
     m_fgPixel = fgPixel;
 }
 
@@ -1296,43 +1355,43 @@ R2Point GWindow::invMap(const I2Point& p) const {
     );
 }
 
-void GWindow::onExpose(XEvent&) {
+void GWindow::onExpose(xcb_expose_event_t*) {
 
 }
 
-void GWindow::onResize(XEvent&) {
+void GWindow::onResize(xcb_configure_notify_event_t*) {
 
 }
 
-void GWindow::onKeyPress(XEvent&) {
+void GWindow::onKeyPress(xcb_key_press_event_t*) {
 
 }
 
-void GWindow::onButtonPress(XEvent&) {
+void GWindow::onButtonPress(xcb_button_press_event_t*) {
 
 }
 
-void GWindow::onButtonRelease(XEvent&) {
+void GWindow::onButtonRelease(xcb_button_release_event_t*) {
 
 }
 
-void GWindow::onMotionNotify(XEvent&) {
+void GWindow::onMotionNotify(xcb_motion_notify_event_t*) {
 
 }
 
-void GWindow::onCreateNotify(XEvent&) {
+void GWindow::onCreateNotify(xcb_create_notify_event_t*) {
 
 }
 
-void GWindow::onDestroyNotify(XEvent&) {
+void GWindow::onDestroyNotify(xcb_destroy_notify_event_t*) {
     //... printf("DestroyNotify event: m_Window=%d\n", m_Window);
 }
 
-void GWindow::onFocusIn(XEvent&) {
+void GWindow::onFocusIn(xcb_focus_in_event_t*) {
 
 }
 
-void GWindow::onFocusOut(XEvent&) {
+void GWindow::onFocusOut(xcb_focus_out_event_t*) {
 
 }
 
@@ -1347,48 +1406,58 @@ void GWindow::recalculateMap() {
     m_ICurPos = map(m_RCurPos);
 }
 
-Font GWindow::loadFont(const char* fontName, XFontStruct **font_struct) {
+xcb_font_t GWindow::loadFont(const char* fontName, xcb_query_font_reply_t **font_struct) {
     //... return XLoadFont(m_Connection, fontName);
-    XFontStruct *fStruct = XLoadQueryFont(m_Connection, fontName);
+    xcb_font_t fid = xcb_generate_id(m_Connection);
+    xcb_void_cookie_t fontCookie = xcb_open_font_checked(m_Connection, fid, strlen(fontName), fontName);
+    xcb_request_check(m_Connection, fontCookie);
+    xcb_query_font_cookie_t cookie = 
+        xcb_query_font(m_Connection, fid);
+    xcb_query_font_reply_t *fStruct = xcb_query_font_reply(m_Connection, cookie, NULL);
     if (fStruct == NULL)
         return 0;
-    Font font = fStruct->fid;
+    xcb_font_t xcb_font_t = xcb_generate_id(m_Connection);
     if (font_struct != 0) {
         *font_struct = fStruct;
     }
-    addFontDescriptor(font, fStruct);
-    return font;
+    addFontDescriptor(fid, fStruct);
+    return fid;
 }
 
-void GWindow::unloadFont(Font fontID) {
+void GWindow::unloadFont(xcb_font_t fontID) {
     //... XUnloadFont(m_Connection, fontID);
     FontDescriptor* fd = findFont(fontID);
     if (fd == 0) {
-        XUnloadFont(m_Connection, fontID);
+        xcb_close_font(m_Connection, fontID);
     } else {
-        XFreeFont(m_Connection, fd->font_struct);
+        xcb_close_font(m_Connection, fontID);
+        free(fd->font_info);
         removeFontDescriptor(fd);
     }
 }
 
-XFontStruct* GWindow::queryFont(Font fontID) const {
-    // Normally, the font must be already loaded by XLoadQueryFont
+xcb_query_font_reply_t* GWindow::queryFont(xcb_font_t fontID) const {
+    // Normally, the xcb_font_t must be already loaded by XLoadQueryFont
     // (with GWindow::loadFont).
     FontDescriptor* fd = findFont(fontID);
     if (fd != 0) {
-        return fd->font_struct;
+        return fd->font_info;
     } else {
         // Should not come here!
-        return XQueryFont(m_Connection, fontID);
+        fontID = xcb_generate_id(m_Connection);
+        xcb_query_font_cookie_t cookie =
+            xcb_query_font(m_Connection, fontID);
+        return xcb_query_font_reply(m_Connection, cookie, NULL);
     }
 }
 
-void GWindow::setFont(Font fontID) {
-    XSetFont(m_Connection, m_GC, fontID);
+void GWindow::setFont(xcb_font_t fontID) {
+    xcb_font_t tempFontID = fontID;
+    xcb_change_gc(m_Connection, m_GC, XCB_GC_FONT, &tempFontID);
 }
 
 // Message from Window Manager, such as "Close Window"
-void GWindow::onClientMessage(XEvent& event) {
+void GWindow::onClientMessage(xcb_client_message_event_t *event) {
     /*
     printf(
         "Client message: message_type = %d, atom name = \"%s\"\n",
@@ -1398,8 +1467,10 @@ void GWindow::onClientMessage(XEvent& event) {
     */
 
     if (
-        event.xclient.message_type == m_WMProtocolsAtom &&
-        (Atom) event.xclient.data.l[0] == m_WMDeleteWindowAtom
+        event->type == m_WMProtocolsAtom &&
+        (xcb_atom_t) event->data.data32[0] == m_WMDeleteWindowAtom
+        //event.xclient.message_type == m_WMProtocolsAtom &&
+        //(Atom) event.xclient.data.l[0] == m_WMDeleteWindowAtom
     ) {
         if (onWindowClosing()) {
             destroyWindow();
@@ -1422,58 +1493,52 @@ void GWindow::setLineAttributes(
     unsigned int line_width, int line_style,
     int cap_style, int join_style
 ) {
-    XSetLineAttributes(
-        m_Connection, m_GC,
-        line_width, line_style, cap_style, join_style
+    unsigned int styles[4] = {line_width, line_style, cap_style, join_style};
+    xcb_change_gc(m_Connection, m_GC,
+        XCB_GC_LINE_WIDTH | XCB_GC_LINE_STYLE | XCB_GC_CAP_STYLE | XCB_GC_JOIN_STYLE,
+        styles
     );
 }
 
 void GWindow::setLineWidth(unsigned int line_width) {
-    XGCValues values;
-    unsigned long valuemask = GCLineWidth;
+    unsigned int tempLineWidth = line_width;
+    unsigned long valuemask = XCB_GC_LINE_WIDTH;
+    xcb_change_gc(m_Connection, m_GC, valuemask, &tempLineWidth);
     /*...
     XGetGCValues(
         m_Connection, m_GC,
         valuemask, &values
     );
     ...*/
-    values.line_width = (int) line_width;
-    XChangeGC(
-        m_Connection, m_GC,
-        valuemask, &values
-    );
 }
 
 void GWindow::drawEllipse(const I2Rectangle& r, bool offscreen /* = false */) {
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
-    ::XDrawArc(
-        m_Connection,
-        draw,
-        m_GC,
-        r.left(), r.top(), r.width(), r.height(),
-        0, 360*64
-    );
+    xcb_arc_t xarc;
+    xarc.x = r.left(); xarc.y = r.top();
+    xarc.width = r.width(); xarc.height = r.height();
+    xarc.angle1 = 0; xarc.angle2 = 360 << 6;
+    xcb_poly_arc(m_Connection, draw, m_GC, 1, &xarc);
+
 }
 
 void GWindow::drawEllipse(const R2Rectangle& r, bool offscreen /* = false */) {
     I2Point leftTop = map(R2Point(r.left(), r.top()));
     I2Point rightBottom = map(R2Point(r.right(), r.bottom()));
 
-    Drawable draw = m_Window;
+    xcb_drawable_t draw = m_Window;
     if (offscreen && m_Pixmap != 0)
         draw = m_Pixmap;
 
-    ::XDrawArc(
-        m_Connection,
-        draw,
-        m_GC,
-        leftTop.x, leftTop.y,
-        rightBottom.x - leftTop.x, rightBottom.y - leftTop.y,
-        0, 360*64
-    );
+    xcb_arc_t xarc;
+    xarc.x = leftTop.x; xarc.y = leftTop.y;
+    xarc.width = rightBottom.x - leftTop.x;
+    xarc.height = rightBottom.y - leftTop.y;
+    xarc.angle1 = 0; xarc.angle2 = 360 << 6;
+    xcb_poly_arc(m_Connection, draw, m_GC, 1, &xarc);
 }
 
 void GWindow::drawCircle(
@@ -1503,18 +1568,13 @@ void GWindow::drawCircle(
 bool GWindow::supportsDepth(int d) const {
     if (m_Connection == 0)
         return false;
-    int numDepths = 0;
-    int *depths = XListDepths(
-        m_Connection,
-        DefaultScreen(m_Connection),
-        &numDepths
-    );
-    if (depths != 0) {
-        for (int i = 0; i < numDepths; ++i) {
-            if (d == depths[i])
-                return true;
+    for(xcb_depth_iterator_t iter = xcb_screen_allowed_depths_iterator(m_ScreenInfo);
+        iter.rem; xcb_depth_next(&iter)){
+        if (iter.data->depth == d) {
+            return true;
         }
-        XFree(depths);
+        
+
     }
     return false;
 }
@@ -1530,13 +1590,11 @@ bool GWindow::supportsDepth32() const {
 bool GWindow::createOffscreenBuffer() {
     if (m_Connection == 0)
         return false;
-    int depth = DefaultDepth(
-        m_Connection, DefaultScreen(m_Connection)
-    );
-    m_Pixmap = ::XCreatePixmap(
-        m_Connection, m_Window,
-        m_IWinRect.width(), m_IWinRect.height(),
-        depth
+    int depth = m_ScreenInfo->root_depth;
+    m_Pixmap = xcb_generate_id(m_Connection);
+    ::xcb_create_pixmap(
+        m_Connection, m_Pixmap, depth, m_Window,
+        m_IWinRect.width(), m_IWinRect.height()
     );
 
     /*...
@@ -1552,17 +1610,15 @@ bool GWindow::createOffscreenBuffer() {
 
 void GWindow::swapBuffers() {
     if (m_Pixmap > 0) {
-        ::XCopyArea(
-            m_Connection, m_Pixmap, m_Window, m_GC,
-            0, 0,       // Source
-            m_IWinRect.width(), m_IWinRect.height(),
-            0, 0        // Destination
+        xcb_copy_area(m_Connection, m_Pixmap, m_Window, m_GC,
+            0, 0, 0, 0,
+            m_IWinRect.width(), m_IWinRect.height()
         );
     }
 }
 
-// Work with the list of font descriptors
-FontDescriptor* GWindow::findFont(Font fontID) {
+// Work with the list of xcb_font_t descriptors
+FontDescriptor* GWindow::findFont(xcb_font_t fontID) {
     FontDescriptor* fd = (FontDescriptor*)(m_FontList.next);
     int n = 0;  // for safety
     while (fd != (FontDescriptor*)(&m_FontList)) {
@@ -1582,7 +1638,7 @@ void GWindow::removeFontDescriptor(FontDescriptor* fd) {
 }
 
 void GWindow::addFontDescriptor(
-    Font fontID, XFontStruct* fontStructure
+    xcb_font_t fontID, xcb_query_font_reply_t* fontStructure
 ) {
     FontDescriptor* fd = new FontDescriptor(fontID, fontStructure);
     // Add in the head of the list
@@ -1594,8 +1650,10 @@ void GWindow::releaseFonts() {
     FontDescriptor* fd = (FontDescriptor*)(m_FontList.next);
     int n = 0;  // for safety
     while (fd != (FontDescriptor*)(&m_FontList)) {
-        if (m_Connection != 0)
-            XFreeFont(m_Connection, fd->font_struct);
+        if (m_Connection != 0){
+            xcb_close_font(m_Connection, fd->font_id);
+            free(fd->font_info);
+        }
         m_FontList.link(*(fd->next));
         delete fd;
         fd = (FontDescriptor*)(m_FontList.next);

@@ -5,6 +5,9 @@
 *.so.*
 *.swp
 *~
+*.la
+*.lo
+*.lai
 
 Makefile.in
 .deps/

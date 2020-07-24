@@ -8,4 +8,4 @@ libgwindow_la_SOURCES = gwindow.cpp
 #libgwindow_la_CFLAGS = $(AM_CFLAGS)
 include_HEADERS = gwindow.h
 libgwindow_la_LIBADD = ../r2graph/libr2graph.la
-libgwindow_la_LDFLAGS = -lX11
+libgwindow_la_LDFLAGS = -lxcb -lxcb-util
