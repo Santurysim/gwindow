@@ -24,9 +24,9 @@ public:
     double f(double x);             // Function y = f(x)
     void drawGraphic();             // Draw graph of function
 
-    virtual void onExpose(XEvent& event);
-    virtual void onKeyPress(XEvent& event);
-    virtual void onButtonPress(XEvent& event);
+    virtual void onExpose(xcb_expose_event_t* event);
+//    virtual void onKeyPress(xcb_key_press_event_t* event);
+    virtual void onButtonPress(xcb_button_press_event_t* event);
 };
 
 //----------------------------------------------------------
@@ -42,7 +42,7 @@ double MyWindow::f(double x) {
 //
 // Process the Expose event: draw in the window
 //
-void MyWindow::onExpose(XEvent& /* event */) {
+void MyWindow::onExpose(xcb_expose_event_t* /* event */) {
     // Erase a window
     setForeground(getBackground());
     fillRectangle(m_RWinRect);
@@ -63,11 +63,11 @@ void MyWindow::onExpose(XEvent& /* event */) {
     R2Vector dx(0.3, 0.);
     R2Vector dy(0., 0.3);
     for (int i = 0; i < numPoints; ++i) {
-        if (mouseButton[i] == Button1)
+        if (mouseButton[i] == XCB_BUTTON_INDEX_1)
             setForeground("red");       // Left button
-        else if (mouseButton[i] == Button2)
+        else if (mouseButton[i] == XCB_BUTTON_INDEX_2)
             setForeground("brown");     // Middle button
-        else if (mouseButton[i] == Button3)
+        else if (mouseButton[i] == XCB_BUTTON_INDEX_3)
             setForeground("SeaGreen");  // Right button
         drawLine(point[i]-dx, point[i]+dx);
         drawLine(point[i]-dy, point[i]+dy);
@@ -78,29 +78,29 @@ void MyWindow::onExpose(XEvent& /* event */) {
 // Process the KeyPress event:
 // if "q" is pressed, then close the window
 //
-void MyWindow::onKeyPress(XEvent& event) {
-    KeySym key;
-    char keyName[256];
-    int nameLen = XLookupString(&(event.xkey), keyName, 255, &key, 0);
-    printf("KeyPress: keycode=0x%x, state=0x%x, KeySym=0x%x\n",
-        event.xkey.keycode, event.xkey.state, (int) key);
-    if (nameLen > 0) {
-        keyName[nameLen] = 0;
-        printf("\"%s\" button pressed.\n", keyName);
-        if (keyName[0] == 'q') { // quit => close window
-            destroyWindow();
-        }
-    }
-}
+// void MyWindow::onKeyPress(xcb_key_press_event_t* event) {
+//     xcb_keysym_t key;
+//     char keyName[256];
+//     //int nameLen = XLookupString(&(event.xkey), keyName, 255, &key, 0);
+//     printf("KeyPress: keycode=0x%x, state=0x%x, KeySym=0x%x\n",
+//         event->detail, event->state, (int) key);
+//     if (nameLen > 0) {
+//         keyName[nameLen] = 0;
+//         printf("\"%s\" button pressed.\n", keyName);
+//         if (keyName[0] == 'q') { // quit => close window
+//             destroyWindow();
+//         }
+//     }
+// }
 
 // Process mouse click
-void MyWindow::onButtonPress(XEvent& event) {
+void MyWindow::onButtonPress(xcb_button_press_event_t* event) {
     if (numPoints >= MAX_POINTS)
         numPoints = 0;
 
-    int x = event.xbutton.x;
-    int y = event.xbutton.y;
-    mouseButton[numPoints] = event.xbutton.button;
+    int x = event->event_x;
+    int y = event->event_y;
+    mouseButton[numPoints] = event->detail;
 
     printf(
         "Mouse click: x=%d, y=%d, button=%d\n",

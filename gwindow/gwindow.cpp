@@ -15,6 +15,7 @@
 
 xcb_connection_t* GWindow::m_Connection = 0;
 int				GWindow::m_Screen = 0;
+xcb_screen_t*	GWindow::m_ScreenInfo = 0;
 xcb_atom_t		GWindow::m_WMProtocolsAtom = 0;
 xcb_atom_t		GWindow::m_WMDeleteWindowAtom = 0;
 
@@ -50,6 +51,7 @@ void GWindow::messageLoop(GWindow* dialogWnd /* = 0 */) {
 
 void GWindow::dispatchEvent(xcb_generic_event_t* event) {
     GWindow* w;
+//	printf("Event type: %d\n", event->response_type);
     if (event->response_type == XCB_EXPOSE) {
 		xcb_expose_event_t *exposeEvent = (xcb_expose_event_t*)event;
 		w = findWindow(exposeEvent->window);
@@ -184,6 +186,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
             w->redraw();
         }
     } else if (event->response_type == XCB_CLIENT_MESSAGE) { // Window closing, etc.
+		printf("client message!\n");
 		xcb_client_message_event_t *clientMessageEvent = (xcb_client_message_event_t*)event;
 		w = findWindow(clientMessageEvent->window);
 		if(!w) return;
@@ -1018,16 +1021,17 @@ void GWindow::redrawRectangle(const I2Rectangle& r) {
     xcb_set_clip_rectangles(m_Connection, XCB_CLIP_ORDERING_UNSORTED,
                         m_GC, 0, 0, 1, &rect);
 
-    xcb_expose_event_t e;
-    memset(&e, 0, sizeof(e));
-    e.response_type = XCB_EXPOSE;
-    e.window = m_Window;
-    e.x = r.left();
-    e.y = r.top();
-    e.width = r.width();
-    e.height = r.height();
-    e.count = 0;
-    xcb_send_event(m_Connection, 0, m_Window, XCB_EVENT_MASK_EXPOSURE, (char*)&e);
+    xcb_expose_event_t *e = (xcb_expose_event_t*)malloc(sizeof(xcb_expose_event_t));
+    memset(e, 0, sizeof(xcb_expose_event_t));
+    e->response_type = XCB_EXPOSE;
+    e->window = m_Window;
+    e->x = r.left();
+    e->y = r.top();
+    e->width = r.width();
+    e->height = r.height();
+    e->count = 0;
+	xcb_send_event(m_Connection, 0, m_Window, XCB_EVENT_MASK_EXPOSURE, (char*)e);
+	xcb_flush(m_Connection);
 }
 
 void GWindow::redrawRectangle(const R2Rectangle& r) {
@@ -1078,7 +1082,7 @@ void GWindow::drawString(
 unsigned long GWindow::allocateColor(const char* colorName) {
     xcb_alloc_named_color_reply_t *c;
     xcb_alloc_named_color_cookie_t cookie = 
-        xcb_alloc_named_color(
+        xcb_alloc_named_color_unchecked(
             m_Connection,
             m_ScreenInfo->default_colormap,
             strlen(colorName),
