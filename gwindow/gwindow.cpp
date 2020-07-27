@@ -31,7 +31,7 @@ ListHeader GWindow::m_FontList(
 
 void GWindow::messageLoop(GWindow* dialogWnd /* = 0 */) {
     xcb_generic_event_t *event;
-
+    xcb_flush(m_Connection);
     while (
         m_NumCreatedWindows > 0 &&
         (dialogWnd == 0 || dialogWnd->m_Window != 0)
@@ -53,6 +53,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
     GWindow* w;
 //	printf("Event type: %d\n", event->response_type);
     if (event->response_type == XCB_EXPOSE) {
+        printf("Expose!\n");
 		xcb_expose_event_t *exposeEvent = (xcb_expose_event_t*)event;
 		w = findWindow(exposeEvent->window);
 		if(!w) return;
@@ -192,6 +193,7 @@ void GWindow::dispatchEvent(xcb_generic_event_t* event) {
 		if(!w) return;
         w->onClientMessage(clientMessageEvent);
     }
+    xcb_flush(m_Connection);
 	free(event);
 }
 
