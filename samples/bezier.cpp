@@ -4,9 +4,10 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
-#include <assert.h>
 #include <X11/cursorfont.h>
+#include <assert.h>
 #include <gwindow.h>
 
 static const int MAX_POINTS = 8;
@@ -18,8 +19,9 @@ static const double CATCH_DIST = 0.1;
 class MyWindow: public GWindow {    // Our main class
     R2Point p[MAX_POINTS];          // Points
     int n;                          // Number of points
-    Cursor indicateCursor;
-    Cursor catchCursor;
+    xcb_font_t cursorFont;
+    xcb_cursor_t indicateCursor;
+    xcb_cursor_t catchCursor;
     bool nodeIndicated;
     bool nodeCatched;
     int catchedNodeIdx;
@@ -39,7 +41,10 @@ public:
         catchedNodeIdx(-1),
         initialUpdate(true),
         offscreenDrawing(false)
-    {}
+    {
+        cursorFont = xcb_generate_id(m_Connection);
+        xcb_open_font(m_Connection, cursorFont, strlen("cursor"), "cursor");
+    }
 
     ~MyWindow() {
         releaseCursors();
@@ -59,13 +64,13 @@ public:
     void drawInOffscreen();
     void releaseCursors();
 
-    virtual void onExpose(XEvent& event);
-    virtual void onKeyPress(XEvent& event);
-    virtual void onButtonPress(XEvent& event);
-    virtual void onButtonRelease(XEvent& event);
-    virtual void onMotionNotify(XEvent& event);
-    virtual void onResize(XEvent& event);
-    virtual void onDestroyNotify(XEvent& event);
+    virtual void onExpose(xcb_expose_event_t* event);
+    virtual void onKeyPress(xcb_key_press_event_t* event);
+    virtual void onButtonPress(xcb_button_press_event_t* event);
+    virtual void onButtonRelease(xcb_button_release_event_t* event);
+    virtual void onMotionNotify(xcb_motion_notify_event_t* event);
+    virtual void onResize(xcb_configure_notify_event_t* event);
+    virtual void onDestroyNotify(xcb_destroy_notify_event_t* event);
 
     int nearestNode(const R2Point& t, double& dist) const;
     void dragNode(const R2Point& t);
@@ -77,7 +82,7 @@ public:
 //
 // Process the Expose event: draw in the window
 //
-void MyWindow::onExpose(XEvent& /* event */) {
+void MyWindow::onExpose(xcb_expose_event_t* /* event */) {
     if (initialUpdate) {
         initialUpdate = false;
 
@@ -199,30 +204,33 @@ R2Point MyWindow::bezierCurve(
 // Process the KeyPress event:
 // if "q" is pressed, then close the window
 //
-void MyWindow::onKeyPress(XEvent& event) {
-    KeySym key;
-    char keyName[256];
-    int nameLen = XLookupString(&(event.xkey), keyName, 255, &key, 0);
+void MyWindow::onKeyPress(xcb_key_press_event_t* event) {
+    // TODO
+    xcb_keysym_t key = xcb_key_symbols_get_keysym(m_KeySymbols, event->detail, 0);
+    //char keyName[256];
+    //int nameLen = XLookupString(&(event.xkey), keyName, 255, &key, 0);
     printf("KeyPress: keycode=0x%x, state=0x%x, KeySym=0x%x\n",
-        event.xkey.keycode, event.xkey.state, (int) key);
-    if (nameLen > 0) {
-        keyName[nameLen] = 0;
-        printf("\"%s\" button pressed.\n", keyName);
-        if (keyName[0] == 'q') { // quit => close window
-            destroyWindow();
-        }
-    }
+        event->detail, event->state, (int) key);
+    if(key == 'q')
+        destroyWindow();
+    // if (nameLen > 0) {
+    //     keyName[nameLen] = 0;
+    //     printf("\"%s\" button pressed.\n", keyName);
+    //     if (keyName[0] == 'q') { // quit => close window
+    //         destroyWindow();
+    //     }
+    // }
 }
 
-void MyWindow::onButtonPress(XEvent& event) {
-    int x = event.xbutton.x;
-    int y = event.xbutton.y;
+void MyWindow::onButtonPress(xcb_button_press_event_t* event) {
+    int x = event->event_x;
+    int y = event->event_y;
     R2Point t = invMap(I2Point(x, y));
-    int mouseButton = event.xbutton.button;
+    int mouseButton = event->detail;
 
     printf("Mouse click: x=%d, y=%d, button=%d\n", x, y, mouseButton);
 
-    if (mouseButton != Button1) {
+    if (mouseButton != XCB_BUTTON_INDEX_1) {
         n = 0;
         if (!offscreenDrawing) {
             redraw();
@@ -240,24 +248,25 @@ void MyWindow::onButtonPress(XEvent& event) {
             nodeIndicated = false;
             catchedNodeIdx = node;
             if (catchCursor == 0) {
-                catchCursor = XCreateFontCursor(
-                    m_Display, XC_cross
-                );
+                catchCursor = xcb_generate_id(m_Connection);
+                xcb_create_glyph_cursor(m_Connection, catchCursor, cursorFont,
+                cursorFont, XC_cross, XC_cross + 1,
+                0, 0, 0, 0, 0, 0);
             }
-            XDefineCursor(m_Display, m_Window, catchCursor);
+            xcb_change_window_attributes(m_Connection, m_Window, XCB_CW_CURSOR, &catchCursor);
         }
     }
 }
 
-void MyWindow::onButtonRelease(XEvent& event) {
-    int x = event.xbutton.x;
-    int y = event.xbutton.y;
+void MyWindow::onButtonRelease(xcb_button_release_event_t* event) {
+    int x = event->event_x;
+    int y = event->event_y;
     R2Point t = invMap(I2Point(x, y));
-    int mouseButton = event.xbutton.button;
+    int mouseButton = event->detail;
 
     printf("Mouse button release: x=%d, y=%d, button=%d\n", x, y, mouseButton);
 
-    if (mouseButton != Button1)
+    if (mouseButton != XCB_BUTTON_INDEX_1)
         return;
 
     if (nodeCatched) {
@@ -281,9 +290,9 @@ void MyWindow::onButtonRelease(XEvent& event) {
 }
 
 // Process mouse moving
-void MyWindow::onMotionNotify(XEvent& event) {
-    int x = event.xmotion.x;
-    int y = event.xmotion.y;
+void MyWindow::onMotionNotify(xcb_motion_notify_event_t* event) {
+    int x = event->event_x;
+    int y = event->event_y;
     R2Point t = invMap(I2Point(x, y));
 
     double dist;
@@ -342,19 +351,19 @@ void MyWindow::dragNode(const R2Point& t) {
     }
 }
 
-void MyWindow::onResize(XEvent& /* event */) {
+void MyWindow::onResize(xcb_configure_notify_event_t* /* event */) {
     if (offscreenDrawing) {
         drawInOffscreen();
         swapBuffers();
     }
 }
 
-void MyWindow::onDestroyNotify(XEvent& /* event */) {
+void MyWindow::onDestroyNotify(xcb_destroy_notify_event_t* /* event */) {
     releaseCursors();
 }
 
 void MyWindow::releaseCursors() {
-    if (m_Display != 0) {
+    if (m_Connection != 0) {
         if (indicateCursor != 0) {
             XFreeCursor(m_Display, indicateCursor);
             indicateCursor = 0;

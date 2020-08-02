@@ -25,7 +25,7 @@ public:
     void drawGraphic();             // Draw graph of function
 
     virtual void onExpose(xcb_expose_event_t* event);
-//    virtual void onKeyPress(xcb_key_press_event_t* event);
+    virtual void onKeyPress(xcb_key_press_event_t* event);
     virtual void onButtonPress(xcb_button_press_event_t* event);
 };
 
@@ -78,20 +78,23 @@ void MyWindow::onExpose(xcb_expose_event_t* /* event */) {
 // Process the KeyPress event:
 // if "q" is pressed, then close the window
 //
-// void MyWindow::onKeyPress(xcb_key_press_event_t* event) {
-//     xcb_keysym_t key;
-//     char keyName[256];
-//     //int nameLen = XLookupString(&(event.xkey), keyName, 255, &key, 0);
-//     printf("KeyPress: keycode=0x%x, state=0x%x, KeySym=0x%x\n",
-//         event->detail, event->state, (int) key);
-//     if (nameLen > 0) {
-//         keyName[nameLen] = 0;
-//         printf("\"%s\" button pressed.\n", keyName);
-//         if (keyName[0] == 'q') { // quit => close window
-//             destroyWindow();
-//         }
-//     }
-// }
+void MyWindow::onKeyPress(xcb_key_press_event_t* event) {
+    // TODO
+    xcb_keysym_t key = xcb_key_symbols_get_keysym(m_KeySymbols, event->detail, 0);
+    //char keyName[256];
+    //int nameLen = XLookupString(&(event.xkey), keyName, 255, &key, 0);
+    printf("KeyPress: keycode=0x%x, state=0x%x, KeySym=0x%x\n",
+        event->detail, event->state, (int) key);
+    if(key == 'q')
+        destroyWindow();
+    // if (nameLen > 0) {
+    //     keyName[nameLen] = 0;
+    //     printf("\"%s\" button pressed.\n", keyName);
+    //     if (keyName[0] == 'q') { // quit => close window
+    //         destroyWindow();
+    //     }
+    // }
+}
 
 // Process mouse click
 void MyWindow::onButtonPress(xcb_button_press_event_t* event) {

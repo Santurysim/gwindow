@@ -19,7 +19,7 @@
 #include <X11/Xos.h>
 */
 #include<xcb/xcb.h>
-#include<xcb/xcb_atom.h>
+#include<xcb/xcb_keysyms.h>
 //}
 
 //===============================
@@ -81,22 +81,16 @@ const int DEFAULT_BORDER_WIDTH = 2;
 
 class GWindow: public ListHeader {
 public:
-    // Xlib objects:
-    // Display and screen are the same for all windows
-    //static Display*     m_Display;
-    //static int          m_Screen;
-    //static Atom         m_WMProtocolsAtom;
-    //static Atom         m_WMDeleteWindowAtom;
+    // XCB objects:
+    // Connection and screen are the same for all windows
 
 	static xcb_connection_t*	m_Connection;
 	static int					m_Screen;
 	static xcb_screen_t*		m_ScreenInfo;
 	static xcb_atom_t			m_WMProtocolsAtom;
 	static xcb_atom_t			m_WMDeleteWindowAtom;
+    static xcb_key_symbols_t*   m_KeySymbols;
 
-    // Window   m_Window;
-    // Pixmap   m_Pixmap;
-    // GC       m_GC;
 	xcb_window_t m_Window;
 	xcb_pixmap_t m_Pixmap;
 	xcb_gcontext_t m_GC;

@@ -13,11 +13,12 @@
 
 #include "gwindow.h"
 
-xcb_connection_t* GWindow::m_Connection = 0;
-int				GWindow::m_Screen = 0;
-xcb_screen_t*	GWindow::m_ScreenInfo = 0;
-xcb_atom_t		GWindow::m_WMProtocolsAtom = 0;
-xcb_atom_t		GWindow::m_WMDeleteWindowAtom = 0;
+xcb_connection_t*   GWindow::m_Connection = 0;
+int				    GWindow::m_Screen = 0;
+xcb_screen_t*	    GWindow::m_ScreenInfo = 0;
+xcb_atom_t		    GWindow::m_WMProtocolsAtom = 0;
+xcb_atom_t		    GWindow::m_WMDeleteWindowAtom = 0;
+xcb_key_symbols_t*  GWindow::m_KeySymbols = 0;
 
 int        GWindow::m_NumWindows = 0;
 int        GWindow::m_NumCreatedWindows = 0;
@@ -50,150 +51,180 @@ void GWindow::messageLoop(GWindow* dialogWnd /* = 0 */) {
 }
 
 void GWindow::dispatchEvent(xcb_generic_event_t* event) {
-    GWindow* w;
-//	printf("Event type: %d\n", event->response_type);
-    if (event->response_type == XCB_EXPOSE) {
-        printf("Expose!\n");
-		xcb_expose_event_t *exposeEvent = (xcb_expose_event_t*)event;
-		w = findWindow(exposeEvent->window);
-		if(!w) return;
-        if (w->m_BeginExposeSeries) {
-            w->m_ClipRectangle.x = exposeEvent->x;
-            w->m_ClipRectangle.y = exposeEvent->y;
-            w->m_ClipRectangle.width = exposeEvent->width;
-            w->m_ClipRectangle.height = exposeEvent->height;
-            w->m_BeginExposeSeries = false;
-        } else {
-            // Add the current rectangle to the clip rectangle
-            if (exposeEvent->x < w->m_ClipRectangle.x)
-                w->m_ClipRectangle.x = exposeEvent->x;
-            if (exposeEvent->y < w->m_ClipRectangle.y)
-                w->m_ClipRectangle.y = exposeEvent->y;
-            if (exposeEvent->x + exposeEvent->width >
-                w->m_ClipRectangle.x + w->m_ClipRectangle.width) {
-                w->m_ClipRectangle.width = exposeEvent->x +
-                    exposeEvent->width - w->m_ClipRectangle.x;
-            }
-            if (exposeEvent->y + exposeEvent->height >
-                w->m_ClipRectangle.y + w->m_ClipRectangle.height) {
-                w->m_ClipRectangle.height = exposeEvent->y +
-                    exposeEvent->height - w->m_ClipRectangle.y;
-            }
-        }
-        if (exposeEvent->count == 0) {
-            // Restrict a drawing to clip rectangle
-            xcb_set_clip_rectangles(
-                m_Connection, XCB_CLIP_ORDERING_UNSORTED,
-			   	w->m_GC, 0, 0,                   // Clip origin
-                1, &(w->m_ClipRectangle)
-            );
+	GWindow* w;
+	//	printf("Event type: %d\n", event->response_type);
+	switch(event->response_type & ~0x80){
+		case XCB_EXPOSE:
+			{
+				xcb_expose_event_t *exposeEvent = (xcb_expose_event_t*)event;
+				w = findWindow(exposeEvent->window);
+				if(!w) return;
+				if (w->m_BeginExposeSeries) {
+					w->m_ClipRectangle.x = exposeEvent->x;
+					w->m_ClipRectangle.y = exposeEvent->y;
+					w->m_ClipRectangle.width = exposeEvent->width;
+					w->m_ClipRectangle.height = exposeEvent->height;
+					w->m_BeginExposeSeries = false;
+				} else {
+					// Add the current rectangle to the clip rectangle
+					if (exposeEvent->x < w->m_ClipRectangle.x)
+						w->m_ClipRectangle.x = exposeEvent->x;
+					if (exposeEvent->y < w->m_ClipRectangle.y)
+						w->m_ClipRectangle.y = exposeEvent->y;
+					if (exposeEvent->x + exposeEvent->width >
+							w->m_ClipRectangle.x + w->m_ClipRectangle.width) {
+						w->m_ClipRectangle.width = exposeEvent->x +
+							exposeEvent->width - w->m_ClipRectangle.x;
+					}
+					if (exposeEvent->y + exposeEvent->height >
+							w->m_ClipRectangle.y + w->m_ClipRectangle.height) {
+						w->m_ClipRectangle.height = exposeEvent->y +
+							exposeEvent->height - w->m_ClipRectangle.y;
+					}
+				}
+				if (exposeEvent->count == 0) {
+					// Restrict a drawing to clip rectangle
+					xcb_set_clip_rectangles(
+							m_Connection, XCB_CLIP_ORDERING_UNSORTED,
+							w->m_GC, 0, 0,                   // Clip origin
+							1, &(w->m_ClipRectangle)
+							);
 
-            w->onExpose(exposeEvent);
+					w->onExpose(exposeEvent);
 
-            // Restore the clip region
-            w->m_ClipRectangle.x = 0;
-            w->m_ClipRectangle.y = 0;
-            w->m_ClipRectangle.width = w->m_IWinRect.width();
-            w->m_ClipRectangle.height = w->m_IWinRect.height();
-            xcb_set_clip_rectangles(
-                m_Connection, XCB_CLIP_ORDERING_UNSORTED,
-			   	w->m_GC, 0, 0,                   // Clip origin
-                1, &(w->m_ClipRectangle)
-            );
-            w->m_BeginExposeSeries = true;
-        }
-    } else if (event->response_type == XCB_KEY_PRESS) {
-		xcb_key_press_event_t *keyPressEvent = (xcb_key_press_event_t*)event;
-		w = findWindow(keyPressEvent->event);
-		if(!w) return;
-        w->onKeyPress(keyPressEvent);
-    } else if (event->response_type == XCB_BUTTON_PRESS) {
-		xcb_button_press_event_t *buttonPressEvent = (xcb_button_press_event_t*)event;
-		w = findWindow(buttonPressEvent->event);
-		if(!w) return;
-        w->onButtonPress(buttonPressEvent);
-    } else if (event->response_type == XCB_BUTTON_RELEASE) {
-		xcb_button_release_event_t *buttonReleaseEvent = (xcb_button_release_event_t*)event;
-		w = findWindow(buttonReleaseEvent->event);
-		if(!w) return;
-        w->onButtonRelease(buttonReleaseEvent);
-    } else if (event->response_type == XCB_MOTION_NOTIFY) {
-		xcb_motion_notify_event_t *motionNotifyEvent = (xcb_motion_notify_event_t*)event;
-		w = findWindow(motionNotifyEvent->event);
-		if(!w) return;
-        w->onMotionNotify(motionNotifyEvent);
-    } else if (event->response_type == XCB_CREATE_NOTIFY) {
-		xcb_create_notify_event_t *createNotifyEvent = (xcb_create_notify_event_t*)event;
-		w = findWindow(createNotifyEvent->window);
-		if(!w) return;
-        w->onCreateNotify(createNotifyEvent);
-    } else if (event->response_type == XCB_DESTROY_NOTIFY) {
-		xcb_destroy_notify_event_t *destroyNotifyEvent = (xcb_destroy_notify_event_t*)event;
-		w = findWindow(destroyNotifyEvent->event);
-		if(!w) return;
-        w->onDestroyNotify(destroyNotifyEvent);
+					// Restore the clip region
+					w->m_ClipRectangle.x = 0;
+					w->m_ClipRectangle.y = 0;
+					w->m_ClipRectangle.width = w->m_IWinRect.width();
+					w->m_ClipRectangle.height = w->m_IWinRect.height();
+					xcb_set_clip_rectangles(
+							m_Connection, XCB_CLIP_ORDERING_UNSORTED,
+							w->m_GC, 0, 0,                   // Clip origin
+							1, &(w->m_ClipRectangle)
+							);
+					w->m_BeginExposeSeries = true;
+				}
+			}
+			break;
+		case XCB_KEY_PRESS:
+			{
+				xcb_key_press_event_t *keyPressEvent = (xcb_key_press_event_t*)event;
+				w = findWindow(keyPressEvent->event);
+				if(!w) return;
+				w->onKeyPress(keyPressEvent);
+			}
+			break;
+		case XCB_BUTTON_PRESS:
+			{
+				xcb_button_press_event_t *buttonPressEvent = (xcb_button_press_event_t*)event;
+				w = findWindow(buttonPressEvent->event);
+				if(!w) return;
+				w->onButtonPress(buttonPressEvent);
+			}
+			break;
+		case XCB_BUTTON_RELEASE:
+			{
+				xcb_button_release_event_t *buttonReleaseEvent = (xcb_button_release_event_t*)event;
+				w = findWindow(buttonReleaseEvent->event);
+				if(!w) return;
+			
+				w->onButtonRelease(buttonReleaseEvent);
+			}
+			break;
+		case XCB_MOTION_NOTIFY:
+			{
+				xcb_motion_notify_event_t *motionNotifyEvent = (xcb_motion_notify_event_t*)event;
+				w = findWindow(motionNotifyEvent->event);
+				if(!w) return;
+				w->onMotionNotify(motionNotifyEvent);
+			}
+			break;
+		case XCB_CREATE_NOTIFY:
+			{
+				xcb_create_notify_event_t *createNotifyEvent = (xcb_create_notify_event_t*)event;
+				w = findWindow(createNotifyEvent->window);
+				if(!w) return;
+				w->onCreateNotify(createNotifyEvent);
+			}
+			break;
+		case XCB_DESTROY_NOTIFY:
+			{
+				xcb_destroy_notify_event_t *destroyNotifyEvent = (xcb_destroy_notify_event_t*)event;
+				w = findWindow(destroyNotifyEvent->event);
+				if(!w) return;
+				w->onDestroyNotify(destroyNotifyEvent);
 
-        GWindow* destroyedWindow = findWindow(destroyNotifyEvent->window);
-        if (destroyedWindow != 0) {
-            if (destroyedWindow->m_WindowCreated) {
-                destroyedWindow->m_WindowCreated = false;
-                m_NumCreatedWindows--;
-            }
-            // Exclude a window from the window list
-            if (destroyedWindow->prev != 0) {
-                destroyedWindow->prev->link(*(destroyedWindow->next));
-                destroyedWindow->prev = 0;
-                destroyedWindow->next = 0;
-                m_NumWindows--;
-            }
-        }
-
-    } else if (event->response_type == XCB_FOCUS_IN) {
-		xcb_focus_in_event_t *focusInEvent = (xcb_focus_in_event_t*)event;
-		w = findWindow(focusInEvent->event);
-		if(!w) return;
-        w->onFocusIn(focusInEvent);
-    } else if (event->response_type == XCB_FOCUS_OUT) {
-		xcb_focus_out_event_t *focusOutEvent = (xcb_focus_out_event_t*)event;
-		w = findWindow(focusOutEvent->event);
-		if(!w) return;
-        w->onFocusOut(focusOutEvent);
-    } else if (event->response_type == XCB_CONFIGURE_NOTIFY) {
-		xcb_configure_notify_event_t *configureEvent = (xcb_configure_notify_event_t*)event;
-		w = findWindow(configureEvent->window);
-		if(!w) return;
-        int newWidth = configureEvent->width;
-        int newHeight = configureEvent->height;
-        if (
-            newWidth != w->m_IWinRect.width() ||
-            newHeight != w->m_IWinRect.height()
-        ) {
-            w->m_IWinRect.setWidth(newWidth);
-            w->m_IWinRect.setHeight(newHeight);
-            w->recalculateMap();
-            if (w->m_Pixmap != 0) {
-                // Offscreen drawing is used
-                int depth = m_ScreenInfo->root_depth;
-                ::xcb_free_pixmap(m_Connection, w->m_Pixmap);
-                w->m_Pixmap = xcb_generate_id(m_Connection);
-				::xcb_create_pixmap(
-                    m_Connection, depth, w->m_Pixmap,
-					w->m_Window, newWidth, newHeight
-                );
-                xcb_flush(m_Connection);
-				// TODO: pixmap might not be ready before onResize
-            }
-            w->onResize(configureEvent);
-            w->redraw();
-        }
-    } else if (event->response_type == XCB_CLIENT_MESSAGE) { // Window closing, etc.
-		printf("client message!\n");
-		xcb_client_message_event_t *clientMessageEvent = (xcb_client_message_event_t*)event;
-		w = findWindow(clientMessageEvent->window);
-		if(!w) return;
-        w->onClientMessage(clientMessageEvent);
-    }
-    xcb_flush(m_Connection);
+				GWindow* destroyedWindow = findWindow(destroyNotifyEvent->window);
+				if (destroyedWindow != 0) {
+					if (destroyedWindow->m_WindowCreated) {
+						destroyedWindow->m_WindowCreated = false;
+						m_NumCreatedWindows--;
+					}
+					// Exclude a window from the window list
+					if (destroyedWindow->prev != 0) {
+						destroyedWindow->prev->link(*(destroyedWindow->next));
+						destroyedWindow->prev = 0;
+						destroyedWindow->next = 0;
+						m_NumWindows--;
+					}
+				}
+			}
+			break;
+		case XCB_FOCUS_IN:
+			{
+				xcb_focus_in_event_t *focusInEvent = (xcb_focus_in_event_t*)event;
+				w = findWindow(focusInEvent->event);
+				if(!w) return;
+				w->onFocusIn(focusInEvent);
+			}
+			break;
+		case XCB_FOCUS_OUT:
+			{
+				xcb_focus_out_event_t *focusOutEvent = (xcb_focus_out_event_t*)event;
+				w = findWindow(focusOutEvent->event);
+				if(!w) return;
+				w->onFocusOut(focusOutEvent);
+			}
+			break;
+		case XCB_CONFIGURE_NOTIFY:
+			{
+				xcb_configure_notify_event_t *configureEvent = (xcb_configure_notify_event_t*)event;
+				w = findWindow(configureEvent->window);
+				if(!w) return;
+				int newWidth = configureEvent->width;
+				int newHeight = configureEvent->height;
+				if (
+						newWidth != w->m_IWinRect.width() ||
+						newHeight != w->m_IWinRect.height()
+				   ) {
+					w->m_IWinRect.setWidth(newWidth);
+					w->m_IWinRect.setHeight(newHeight);
+					w->recalculateMap();
+					if (w->m_Pixmap != 0) {
+						// Offscreen drawing is used
+						int depth = m_ScreenInfo->root_depth;
+						::xcb_free_pixmap(m_Connection, w->m_Pixmap);
+						w->m_Pixmap = xcb_generate_id(m_Connection);
+						::xcb_create_pixmap(
+								m_Connection, depth, w->m_Pixmap,
+								w->m_Window, newWidth, newHeight
+								);
+						xcb_flush(m_Connection);
+						// TODO: pixmap might not be ready before onResize
+					}
+					w->onResize(configureEvent);
+					w->redraw();
+				}
+			}
+			break;
+		case XCB_CLIENT_MESSAGE: // Window closing, etc.
+			xcb_client_message_event_t *clientMessageEvent = (xcb_client_message_event_t*)event;
+			w = findWindow(clientMessageEvent->window);
+			if(!w) return;
+			w->onClientMessage(clientMessageEvent);
+			break;
+	}
+	xcb_flush(m_Connection);
 	free(event);
 }
 
@@ -638,6 +669,8 @@ bool GWindow::initX() {
 	if(!m_ScreenInfo){
 		fprintf(stderr, "Failed to get screen info");
 	}
+
+    m_KeySymbols = xcb_key_symbols_alloc(m_Connection);
     return true;
 }
 
@@ -645,6 +678,7 @@ void GWindow::closeX() {
     if (m_Connection == 0)
         return;
 	releaseFonts();
+    xcb_key_symbols_free(m_KeySymbols);
 
     xcb_disconnect(m_Connection);
     m_Connection = 0;
