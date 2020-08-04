@@ -122,8 +122,8 @@ public:
 protected:
 
     // Background, foreground
-    unsigned long       m_bgPixel;
-    unsigned long       m_fgPixel;
+    uint32_t       m_bgPixel;
+    uint32_t       m_fgPixel;
     const char*         m_bgColorName;
     const char*         m_fgColorName;
 
@@ -252,8 +252,8 @@ public:
     void setFgColorName(const char* colorName);
 
     void setLineAttributes(
-        unsigned int line_width, int line_style, 
-        int cap_style, int join_style
+        uint32_t line_width, uint32_t line_style, 
+        uint32_t cap_style, uint32_t join_style
     );
 
     void setLineWidth(unsigned int line_width);
@@ -265,8 +265,8 @@ public:
     void setForeground(unsigned long fg);
     void setForeground(const char *colorName);
 
-    unsigned long getBackground() const { return m_bgPixel; }
-    unsigned long getForeground() const { return m_fgPixel; }
+    uint32_t getBackground() const { return m_bgPixel; }
+    uint32_t getForeground() const { return m_fgPixel; }
 
     void fillRectangle(const I2Rectangle&, bool offscreen = false);
     void fillRectangle(const R2Rectangle&, bool offscreen = false);

@@ -1310,10 +1310,10 @@ bool GWindow::onWindowClosing() {
 }
 
 void GWindow::setLineAttributes(
-    unsigned int line_width, int line_style,
-    int cap_style, int join_style
+    uint32_t line_width, uint32_t line_style,
+    uint32_t cap_style, uint32_t join_style
 ) {
-    unsigned int styles[4] = {line_width, line_style, cap_style, join_style};
+    uint32_t styles[4] = {line_width, line_style, cap_style, join_style};
     xcb_change_gc(m_Connection, m_GC,
         XCB_GC_LINE_WIDTH | XCB_GC_LINE_STYLE | XCB_GC_CAP_STYLE | XCB_GC_JOIN_STYLE,
         styles
