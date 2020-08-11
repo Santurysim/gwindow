@@ -206,7 +206,7 @@ void GWindow::dispatchEvent(XEvent& event) {
                 ::XFreePixmap(m_Display, w->m_Pixmap);
                 w->m_Pixmap = ::XCreatePixmap(
                     m_Display, w->m_Window,
-                    newWidth, newHeight,
+                    newWidth * m_DpiX / 96, newHeight * m_DpiY / 96,
                     depth
                 );
             }
@@ -433,8 +433,8 @@ void GWindow::createWindow(
     m_Window = XCreateWindow(
         m_Display,
         parent,
-        m_WindowPosition.x,
-        m_WindowPosition.y,
+        m_WindowPosition.x * m_DpiX / 96,
+        m_WindowPosition.y * m_DpiY / 96,
         m_IWinRect.width() * m_DpiX / 96,
         m_IWinRect.height() * m_DpiY / 96,
         m_BorderWidth,
@@ -711,13 +711,13 @@ void GWindow::closeX() {
 int GWindow::screenMaxX() {
     if (m_Display == 0)
         initX();
-    return XDisplayWidth(m_Display, m_Screen);
+    return XDisplayWidth(m_Display, m_Screen) * 96 / m_DpiX;
 }
 
 int GWindow::screenMaxY() {
     if (m_Display == 0)
         initX();
-    return XDisplayHeight(m_Display, m_Screen);
+    return XDisplayHeight(m_Display, m_Screen) * 96 / m_DpiY;
 }
 
 void GWindow::drawFrame() {
@@ -1471,7 +1471,7 @@ bool GWindow::createOffscreenBuffer() {
     );
     m_Pixmap = ::XCreatePixmap(
         m_Display, m_Window,
-        m_IWinRect.width(), m_IWinRect.height(),
+        m_IWinRect.width() * m_DpiX / 96, m_IWinRect.height() * m_DpiY / 96,
         depth
     );
 
@@ -1491,7 +1491,7 @@ void GWindow::swapBuffers() {
         ::XCopyArea(
             m_Display, m_Pixmap, m_Window, m_GC,
             0, 0,       // Source
-            m_IWinRect.width(), m_IWinRect.height(),
+            m_IWinRect.width() * m_DpiX / 96, m_IWinRect.height() * m_DpiY / 96,
             0, 0        // Destination
         );
     }
