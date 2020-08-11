@@ -18,6 +18,11 @@ extern "C" {
 
 }
 
+#define TO_DIP_X(x) ((x) * 96 / m_DpiX)
+#define TO_DIP_Y(y) ((y) * 96 / m_DpiY)
+
+#define FROM_DIP_X(x) ((x) * m_DpiX / 96)
+#define FROM_DIP_Y(y) ((y) * m_DpiY / 96)
 //===============================
 
 class ListHeader {
