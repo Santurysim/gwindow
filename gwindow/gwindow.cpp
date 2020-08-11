@@ -717,7 +717,7 @@ bool GWindow::initX() {
     m_DpiY = (int)((((double)DisplayHeight(m_Display, m_Screen) * 25.4) /
             ((double)DisplayHeightMM(m_Display, m_Screen))) + 0.5);
 
-    // printf("Dpi X: %d, Dpi Y: %d\n", m_DpiX, m_DpiY);
+    printf("Dpi X: %d, Dpi Y: %d\n", m_DpiX, m_DpiY);
 
     return true;
 }
@@ -739,13 +739,13 @@ void GWindow::closeX() {
 int GWindow::screenMaxX() {
     if (m_Display == 0)
         initX();
-    return TO_DIP_X(XDisplayWidth(m_Display, m_Screen));
+    return XDisplayWidth(m_Display, m_Screen);
 }
 
 int GWindow::screenMaxY() {
     if (m_Display == 0)
         initX();
-    return TO_DIP_Y(XDisplayHeight(m_Display, m_Screen));
+    return XDisplayHeight(m_Display, m_Screen);
 }
 
 void GWindow::drawFrame() {
