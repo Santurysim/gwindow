@@ -148,7 +148,7 @@ int main() {
     MyWindow w;
     double aspect = (double) GWindow::screenMaxX() /
         (double) GWindow::screenMaxY();
-    double width = 50.;
+    double width = 30.;
     int height = width / aspect;
     w.createWindow(
         I2Rectangle(                    // Window frame rectangle:
