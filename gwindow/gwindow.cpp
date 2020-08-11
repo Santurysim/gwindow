@@ -676,6 +676,8 @@ bool GWindow::initX() {
         False
     );
     return true;
+
+
 }
 
 void GWindow::closeX() {

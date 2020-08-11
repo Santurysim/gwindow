@@ -4,6 +4,7 @@
 AC_INIT([GWindow], [1.0])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_PROG_AR
+AM_SILENT_RULES([yes])
 LT_INIT
 AC_CONFIG_MACRO_DIRS([m4])
 
