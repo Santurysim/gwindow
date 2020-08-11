@@ -18,6 +18,9 @@ int      GWindow::m_Screen = 0;
 Atom     GWindow::m_WMProtocolsAtom = 0;
 Atom     GWindow::m_WMDeleteWindowAtom = 0;
 
+int GWindow::m_DpiX = 0;
+int GWindow::m_DpiY = 0;
+
 int        GWindow::m_NumWindows = 0;
 int        GWindow::m_NumCreatedWindows = 0;
 ListHeader GWindow::m_WindowList(
@@ -432,8 +435,8 @@ void GWindow::createWindow(
         parent,
         m_WindowPosition.x,
         m_WindowPosition.y,
-        m_IWinRect.width(),
-        m_IWinRect.height(),
+        m_IWinRect.width() * m_DpiX / 96,
+        m_IWinRect.height() * m_DpiY / 96,
         m_BorderWidth,
         CopyFromParent,
         wndClass,
@@ -675,9 +678,20 @@ bool GWindow::initX() {
         "WM_DELETE_WINDOW",
         False
     );
+
+    // 1 inch = 25.4 millimeters,
+    // therefore dpiX = screen width in pixels / screen width in inches =
+    // = screen width in pixels * 25.4 / screen width in mm
+    m_DpiX = (int)((((double)DisplayWidth(m_Display, m_Screen) * 25.4) /
+            ((double)DisplayWidthMM(m_Display, m_Screen))) + 0.5);
+
+    // The same applies to dpiY
+    m_DpiY = (int)((((double)DisplayHeight(m_Display, m_Screen) * 25.4) /
+            ((double)DisplayHeightMM(m_Display, m_Screen))) + 0.5);
+
+    printf("Dpi X: %d, Dpi Y: %d\n", m_DpiX, m_DpiY);
+
     return true;
-
-
 }
 
 void GWindow::closeX() {
@@ -877,8 +891,8 @@ void GWindow::drawLine(
             m_Display,
             draw,
             m_GC,
-            p1.x, p1.y,
-            p2.x, p2.y
+            p1.x * m_DpiX / 96, p1.y * m_DpiY / 96,
+            p2.x * m_DpiX / 96, p2.y * m_DpiY / 96
         );
     } else {
         R2Point c1, c2;
@@ -895,8 +909,8 @@ void GWindow::drawLine(
                 m_Display,
                 draw,
                 m_GC,
-                (int)(c1.x + 0.5), (int)(c1.y + 0.5),
-                (int)(c2.x + 0.5), (int)(c2.y + 0.5)
+                (int)(c1.x + 0.5) * m_DpiX / 96, (int)(c1.y + 0.5) * m_DpiY / 96,
+                (int)(c2.x + 0.5) * m_DpiX / 96, (int)(c2.y + 0.5) * m_DpiY / 96
             );
         }
     }
@@ -933,8 +947,8 @@ void GWindow::drawLine(
             m_Display,
             draw,
             m_GC,
-            ip1.x, ip1.y,
-            ip2.x, ip2.y
+            ip1.x * m_DpiX / 96, ip1.y * m_DpiY / 96,
+            ip2.x * m_DpiX / 96, ip2.y * m_DpiY / 96
         );
     }
 }
@@ -960,7 +974,7 @@ void GWindow::fillRectangle(const I2Rectangle& r, bool offscreen /* = false */) 
         m_Display,
         draw,
         m_GC,
-        r.left(), r.top(), r.width(), r.height()
+        r.left() * m_DpiX / 96, r.top() * m_DpiY / 96, r.width() * m_DpiX / 96, r.height() * m_DpiY / 96
     );
 }
 
@@ -979,8 +993,8 @@ void GWindow::fillRectangle(const R2Rectangle& r, bool offscreen /* = false */) 
         m_Display,
         draw,
         m_GC,
-        leftTop.x, leftTop.y,
-        rightBottom.x - leftTop.x, rightBottom.y - leftTop.y
+        leftTop.x * m_DpiX / 96, leftTop.y * m_DpiY / 96,
+        (rightBottom.x - leftTop.x) * m_DpiX / 96, (rightBottom.y - leftTop.y) * m_DpiY / 96
     );
 }
 
@@ -1013,8 +1027,8 @@ void GWindow::fillPolygon(
     pnt[0].x = (short) points[0].x;
     pnt[0].y = (short) points[0].y;
     for (int i = 1; i < numPoints; ++i) {
-        pnt[i].x = (short) points[i].x;
-        pnt[i].y = (short) points[i].y;
+        pnt[i].x = (short) (points[i].x * m_DpiX / 96);
+        pnt[i].y = (short) (points[i].y * m_DpiY / 96);
     }
     ::XFillPolygon(
         m_Display,
@@ -1037,7 +1051,7 @@ void GWindow::fillEllipse(const I2Rectangle& r, bool offscreen /* = false */) {
         m_Display,
         draw,
         m_GC,
-        r.left(), r.top(), r.width(), r.height(),
+        r.left() * m_DpiX / 96, r.top() * m_DpiY / 96, r.width() * m_DpiX / 96, r.height() * m_DpiY / 96,
         0, 360*64
     );
 }
@@ -1054,8 +1068,8 @@ void GWindow::fillEllipse(const R2Rectangle& r, bool offscreen /* = false */) {
         m_Display,
         draw,
         m_GC,
-        leftTop.x, leftTop.y,
-        rightBottom.x - leftTop.x, rightBottom.y - leftTop.y,
+        leftTop.x * m_DpiX / 96, leftTop.y * m_DpiY / 96,
+        (rightBottom.x - leftTop.x) * m_DpiX / 96, (rightBottom.y - leftTop.y) * m_DpiY / 96,
         0, 360*64
     );
 }
@@ -1120,7 +1134,7 @@ void GWindow::drawString(
         m_Display,
         draw,
         m_GC,
-        x, y,
+        x * m_DpiX / 96, y * m_DpiY / 96,
         str, 
         l
     );
@@ -1375,7 +1389,7 @@ void GWindow::drawEllipse(const I2Rectangle& r, bool offscreen /* = false */) {
         m_Display,
         draw,
         m_GC,
-        r.left(), r.top(), r.width(), r.height(),
+        r.left() * m_DpiX / 96, r.top() * m_DpiY / 96, r.width() * m_DpiX / 96, r.height() * m_DpiY / 96,
         0, 360*64
     );
 }
@@ -1392,8 +1406,8 @@ void GWindow::drawEllipse(const R2Rectangle& r, bool offscreen /* = false */) {
         m_Display,
         draw,
         m_GC,
-        leftTop.x, leftTop.y,
-        rightBottom.x - leftTop.x, rightBottom.y - leftTop.y,
+        leftTop.x * m_DpiX / 96, leftTop.y * m_DpiY / 96,
+        (rightBottom.x - leftTop.x) * m_DpiX / 96, (rightBottom.y - leftTop.y) * m_DpiY / 96,
         0, 360*64
     );
 }

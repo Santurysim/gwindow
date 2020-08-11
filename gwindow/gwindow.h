@@ -15,7 +15,6 @@ extern "C" {
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
-#include <X11/Xresource.h>
 
 }
 
@@ -84,8 +83,8 @@ public:
     static Atom         m_WMDeleteWindowAtom;
 
 	// DPI coefficients
-	static float m_DpiCoefX;
-	static float m_DpiCoefY;
+	static int m_DpiX;
+	static int m_DpiY;
 
     Window   m_Window;
     Pixmap   m_Pixmap;
